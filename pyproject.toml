@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pehredar"
+version = "1.0.0"
+description = "Android Root/Jailbreak Detection via ADB"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+]
+license = {text = "MIT"}
+authors = [{name = "Pehredar Contributors"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
+]
+keywords = ["android", "root", "jailbreak", "adb", "security", "detection"]
+
+[project.scripts]
+pehredar = "pehredar.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pehredar*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
