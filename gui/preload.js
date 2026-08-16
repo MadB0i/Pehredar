@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld("pehredar", {
     uninstall: (pkgs) => ipcRenderer.invoke("app:uninstall", pkgs),
   },
   deviceInfo: () => ipcRenderer.invoke("device:info"),
+  agent: {
+    start: (kind) => ipcRenderer.send("agent:start", kind),
+    cancel: () => ipcRenderer.send("agent:cancel"),
+    onEvent: (callback) => {
+      ipcRenderer.on("agent-event", (_event, data) => callback(data));
+    },
+  },
+  fastboot: {
+    detect: () => ipcRenderer.invoke("fastboot:detect"),
+  },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (patch) => ipcRenderer.invoke("settings:set", patch),

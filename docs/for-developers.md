@@ -84,6 +84,35 @@ pytest          # mocked ADB — no device needed
 
 `INCONCLUSIVE` results (e.g. a timed-out probe) are never counted as failures and never inflate the risk score.
 
+## Agent CLI (`pehredar-agent`)
+
+Automated bootloader unlock + Magisk root and USB lock recovery, for owned/authorized devices. Every event is emitted as one JSON line when `--json-stream` is set, so the GUI can drive it as a subprocess.
+
+```bash
+pehredar-agent -s <serial> --plan-only --json-stream   # fingerprint + plan, no execution
+pehredar-agent -s <serial> --mode temporary            # fastboot boot patched image (non-destructive)
+pehredar-agent -s <serial> --mode permanent --yes      # unlock + fastboot flash boot (ERASES ALL DATA)
+pehredar-agent -s <serial> --lock-recovery --yes       # clear forgotten PIN/pattern/password
+pehredar-agent -s <serial> --boot-img boot.img         # provide boot image when it can't be extracted
+pehredar-agent -s <serial> --magiskboot magiskboot     # explicit magiskboot path
+pehredar-agent --help
+```
+
+Event types: `fp`, `plan`, `step` (`start|ok|error|skipped`), `detail`, `verify`, `done`, `error`. `confirm(step)` gates destructive steps in-process; the GUI collects consent up front and passes `--yes`.
+
+### Agent internals (`pehredar/agent/`)
+
+| Module | Purpose |
+|--------|---------|
+| `fastboot.py` | `FastbootConnection` wrapper over the fastboot binary |
+| `fingerprint.py` | Non-invasive device identity (getprop only, no reboot) + OEM normalization |
+| `root_planner.py` | Support matrix → `RootPlan` of `PlanStep`s |
+| `magisk.py` | `has_root`, boot-image extract, magiskboot patch, unlock/apply |
+| `lockrecovery.py` | Lock-recovery method matrix + executor |
+| `verify.py` | `wait_for_adb`, re-run detection checks to confirm root/unlock |
+
+Honest scope: OEM unlock requires a **physical confirmation on the device screen** (volume key / tap) — the agent makes it a checkpoint and waits. Lock recovery only works when USB debugging is already enabled and authorized (you can't enable debugging on a locked phone — that's the natural safety gate).
+
 ## Contributing
 
 1. Fork the repository

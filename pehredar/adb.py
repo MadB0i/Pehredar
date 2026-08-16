@@ -94,3 +94,8 @@ class ADBConnection:
 
     def run_command(self, command: str, timeout: float = 30) -> tuple[str, str, int]:
         return self.shell(command, timeout=timeout)
+
+    def host(self, *args: str, timeout: float = 60) -> tuple[str, str, int]:
+        """Run a host-side adb command (no `shell` prefix), e.g. pull/reboot."""
+        result = self._run_adb(list(args), timeout=timeout)
+        return result.stdout.strip(), result.stderr.strip(), result.returncode

@@ -14,6 +14,7 @@
     folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
     trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
     refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
+    advanced: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   };
 
   window.icon = function (name, size) {
@@ -43,6 +44,7 @@
     document.getElementById("nav-ico-scan").innerHTML = window.icon("scan", 19);
     document.getElementById("nav-ico-history").innerHTML = window.icon("history", 19);
     document.getElementById("nav-ico-settings").innerHTML = window.icon("settings", 19);
+    document.getElementById("nav-ico-advanced").innerHTML = window.icon("advanced", 19);
     document.getElementById("nav-ico-about").innerHTML = window.icon("about", 19);
     document.getElementById("splash-mark").innerHTML = window.brandIcon(64);
     document.getElementById("btn-ico-export").innerHTML = window.icon("export", 15);

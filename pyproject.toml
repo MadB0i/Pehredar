@@ -33,6 +33,7 @@ keywords = ["android", "root", "jailbreak", "adb", "security", "detection"]
 
 [project.scripts]
 pehredar = "pehredar.cli:main"
+pehredar-agent = "pehredar.agent_cli:main"
 
 [project.optional-dependencies]
 dev = [

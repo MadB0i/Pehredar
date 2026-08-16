@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
   adbPath: "",
   accent: "cyan",
   simple: false,
+  agentMode: "temporary",
   checks: {
     categories: { root: true, spyware: true },
     enabled: {},
@@ -38,6 +39,7 @@ let devicePollTimer = null;
 let currentDeviceSerial = null;
 let currentDeviceModel = null;
 let scanProcess = null;
+let agentProcess = null;
 
 // ---- settings persistence ----
 function settingsFile() {
@@ -51,6 +53,7 @@ function getSettings() {
     if (saved.adbPath !== undefined) base.adbPath = saved.adbPath;
     if (saved.accent !== undefined) base.accent = saved.accent;
     if (saved.simple !== undefined) base.simple = saved.simple;
+    if (saved.agentMode !== undefined) base.agentMode = saved.agentMode;
     if (saved.checks) {
       if (saved.checks.categories) base.checks.categories = Object.assign({}, base.checks.categories, saved.checks.categories);
       if (saved.checks.enabled) base.checks.enabled = Object.assign({}, base.checks.enabled, saved.checks.enabled);
@@ -149,6 +152,7 @@ function createWindow() {
     mainWindow = null;
     stopDevicePolling();
     killScan();
+    killAgent();
   });
 }
 
@@ -314,6 +318,100 @@ function killScan() {
       /* already dead */
     }
     scanProcess = null;
+  }
+}
+
+// ---- agent (root / lock recovery) ----
+function agentEvent(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("agent-event", payload);
+  }
+}
+
+function agentWorkdir() {
+  return path.join(app.getPath("userData"), "agent-work");
+}
+
+// kind: "plan-root" | "run-root" | "plan-lock" | "run-lock"
+function runAgent(kind) {
+  if (!currentDeviceSerial || agentProcess) return false;
+
+  const root = resolveProjectRoot();
+  const args = ["-m", "pehredar.agent_cli", "-s", currentDeviceSerial, "--json-stream"];
+  const settings = getSettings();
+  if (settings.adbPath && settings.adbPath.trim()) {
+    args.push("--adb-path", settings.adbPath.trim());
+  }
+  args.push("--workdir", agentWorkdir());
+
+  if (kind === "plan-root" || kind === "run-root") {
+    args.push("--mode", settings.agentMode === "permanent" ? "permanent" : "temporary");
+  }
+  if (kind === "plan-root") {
+    args.push("--plan-only");
+  } else if (kind === "plan-lock") {
+    args.push("--lock-recovery", "--plan-only");
+  } else if (kind === "run-lock") {
+    args.push("--lock-recovery", "--yes");
+  } else if (kind === "run-root") {
+    args.push("--yes");
+  }
+
+  const env = Object.assign({}, process.env);
+  if (app.isPackaged) {
+    env.PYTHONPATH = process.resourcesPath + (env.PYTHONPATH ? path.delimiter + env.PYTHONPATH : "");
+  }
+
+  agentProcess = spawn(pythonCommand(), args, { cwd: root, windowsHide: true, env });
+
+  let buffer = "";
+  agentProcess.stdout.setEncoding("utf8");
+  agentProcess.stdout.on("data", (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let obj = null;
+      try {
+        obj = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+      agentEvent(obj);
+    }
+  });
+
+  let errorBuffer = "";
+  agentProcess.stderr.setEncoding("utf8");
+  agentProcess.stderr.on("data", (chunk) => {
+    errorBuffer += chunk;
+  });
+
+  agentProcess.on("error", (err) => {
+    agentEvent({ type: "error", error: String(err.message) });
+  });
+
+  agentProcess.on("close", (code) => {
+    const err = errorBuffer.trim();
+    if (code !== 0 && err) {
+      agentEvent({ type: "error", error: err });
+    }
+    agentEvent({ type: "exit", code });
+    agentProcess = null;
+  });
+  return true;
+}
+
+function killAgent() {
+  if (agentProcess) {
+    try {
+      agentProcess.kill();
+    } catch {
+      /* already dead */
+    }
+    agentProcess = null;
   }
 }
 
@@ -488,6 +586,18 @@ function exportScan(id) {
 ipcMain.on("device:start", () => startDevicePolling());
 ipcMain.on("scan:start", () => startScan());
 ipcMain.on("scan:cancel", () => killScan());
+ipcMain.on("agent:start", (_e, kind) => runAgent(kind));
+ipcMain.on("agent:cancel", () => killAgent());
+
+ipcMain.handle("fastboot:detect", async () => {
+  return new Promise((resolve) => {
+    const exe = process.platform === "win32" ? "where" : "which";
+    execFile(exe, ["fastboot"], { timeout: 4000 }, (err, stdout) => {
+      if (err || !String(stdout).trim()) resolve({ found: false, path: "" });
+      else resolve({ found: true, path: String(stdout).trim().split(/\r?\n/)[0] });
+    });
+  });
+});
 
 ipcMain.handle("device:info", async () => {
   if (!currentDeviceSerial) return null;

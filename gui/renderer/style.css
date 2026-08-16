@@ -988,3 +988,30 @@ details.check-ref .ref-body { padding: 0 var(--s4) var(--s4) var(--s4); color: v
 .sum-removed { color: var(--green); }
 .sum-failed { color: var(--red); }
 .rv-fail { color: var(--red); font-size: 11.5px; word-break: break-word; }
+
+/* ---- Advanced (Root Agent / Lock Recovery) ---- */
+.advanced-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); margin-bottom: var(--s4); }
+@media (max-width: 1100px) { .advanced-grid { grid-template-columns: 1fr; } }
+.agent-device { color: var(--text); font-size: 12px; margin-bottom: var(--s3); padding: var(--s2) var(--s3); background: rgba(0, 229, 255, 0.06); border: 1px solid var(--accent-soft); border-radius: var(--s2); word-break: break-all; }
+.mode-row { display: flex; gap: var(--s2); margin-bottom: var(--s3); }
+.mode-btn { flex: 1; padding: var(--s2) var(--s3); background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--s2); font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: all 0.15s ease; }
+.mode-btn:hover { border-color: var(--accent); color: var(--text); }
+.mode-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 12px var(--accent-glow); }
+.agent-actions { display: flex; gap: var(--s3); margin-top: var(--s3); }
+.agent-panel { margin-top: 0; }
+.agent-notes { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s3); }
+.agent-note { color: var(--yellow); font-size: 11.5px; line-height: 1.5; padding-left: var(--s3); border-left: 2px solid var(--yellow); }
+.agent-step { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s2) var(--s3); border: 1px solid var(--border); border-radius: var(--s2); margin-bottom: var(--s2); opacity: 0.55; transition: opacity 0.2s ease; }
+.agent-step.start, .agent-step.ok, .agent-step.error { opacity: 1; }
+.agent-step-dot { flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--text-faint); }
+.agent-step.ok .agent-step-dot { background: var(--green); box-shadow: 0 0 10px var(--green); }
+.agent-step.error .agent-step-dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
+.agent-step.start .agent-step-dot { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); animation: pulse 1.2s infinite; }
+.agent-step-body { flex: 1; min-width: 0; }
+.agent-step-title { color: var(--text); font-size: 12.5px; font-weight: 500; }
+.agent-step-detail { color: var(--text-dim); font-size: 11.5px; line-height: 1.5; margin-top: 2px; }
+.agent-warn { color: var(--red); font-size: 9.5px; letter-spacing: 1px; border: 1px solid var(--red); border-radius: var(--s1); padding: 1px 5px; margin-left: 6px; }
+.agent-err { color: var(--red); font-size: 11px; margin-top: 4px; word-break: break-word; }
+.agent-log { max-height: 220px; overflow-y: auto; margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.agent-log-line { padding: 2px 0; word-break: break-word; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
