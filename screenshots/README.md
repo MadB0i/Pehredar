@@ -8,7 +8,7 @@ Expected filenames:
 | ---- | ------------- |
 | `dashboard.png` | Dashboard view — device info, quick stats, checks overview, risk trend |
 | `scan-live.png` | Scan view mid-run — animated network graph of checks |
-| `scan-detail-fail.png` | Scan detail — full results with a failing check (and Review & Remove) |
+| `scan-detail.png` | Scan detail — full results with a failing check (and Review & Remove) |
 | `settings.png` | Settings view — check toggles, ADB configuration, appearance, storage |
 | `about.png` | About view — how-it-works, checks reference, links |
 

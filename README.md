@@ -14,7 +14,7 @@ One tool, two audiences. For developers and QA teams it's a compliance-testing t
 
 | Dashboard | Live scan | Scan detail |
 | --------- | --------- | ----------- |
-| ![Dashboard](screenshots/dashboard.png) | ![Live scan](screenshots/scan-live.png) | ![Scan detail](screenshots/scan-detail-fail.png) |
+| ![Dashboard](screenshots/dashboard.png) | ![Live scan](screenshots/scan-live.png) | ![Scan detail](screenshots/scan-detail.png) |
 
 ## Quick Start
 
