@@ -36,6 +36,28 @@ def _screen_size(adb: ADBConnection) -> tuple[int, int]:
     return 1080, 2340
 
 
+def _wake_screen(adb: ADBConnection) -> None:
+    """Turn the screen on (KEYCODE_WAKEUP) so the keyguard is actually visible."""
+    try:
+        adb.run_command("input keyevent 224")
+    except ADBError:
+        pass
+
+
+def wait_for_boot(adb: ADBConnection, timeout: float = 90) -> bool:
+    """Wait until Android reports sys.boot_completed=1."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            out, _, code = adb.run_command("getprop sys.boot_completed")
+            if code == 0 and out.strip() == "1":
+                return True
+        except ADBError:
+            pass
+        time.sleep(2)
+    return False
+
+
 def detect_lock_state(adb: ADBConnection) -> LockState:
     """Read-only lock/crypt state. Never writes to the device."""
     authorized = False
@@ -50,7 +72,9 @@ def detect_lock_state(adb: ADBConnection) -> LockState:
 
     lockscreen = False
     try:
-        out, _, _ = adb.run_command("dumpsys window | grep -E 'mDreamingLockscreen|mShowingLockscreen'")
+        out, _, _ = adb.run_command(
+            "dumpsys window | grep -E 'mDreamingLockscreen|mShowingLockscreen|mKeyguardShowing'"
+        )
         lockscreen = "true" in out.lower()
     except ADBError:
         pass
@@ -163,6 +187,7 @@ __all__ = [
     "detect_lock_state",
     "unlock_with_pattern",
     "unlock_with_pin",
+    "wait_for_boot",
     "wait_until_authorized",
     "wait_until_unlocked",
 ]

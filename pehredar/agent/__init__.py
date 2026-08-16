@@ -15,9 +15,11 @@ from .magisk import (
 from .root_planner import PlanStep, RootPlan, build_root_plan
 from .unlock import (
     UnlockError,
+    _wake_screen,
     detect_lock_state,
     unlock_with_pattern,
     unlock_with_pin,
+    wait_for_boot,
     wait_until_authorized,
     wait_until_unlocked,
 )
@@ -53,7 +55,16 @@ def auto_unlock(
             )
         if not wait_until_authorized(adb, timeout=float(unlock_config.get("timeout", 180))):
             raise UnlockError("device did not re-authorize after reboot — unlock it on-screen and try again")
-        state = detect_lock_state(adb)
+
+    # `adb devices` reports "device" before Android finishes booting, so the
+    # keyguard is not up yet. Wait for boot to complete and wake the screen so
+    # lockscreen detection sees the real state instead of falsely reporting an
+    # unlocked (or pre-lockscreen) device.
+    if on_event:
+        on_event({"type": "unlock", "state": "action", "detail": "waiting for device to finish booting"})
+    wait_for_boot(adb, timeout=float(unlock_config.get("timeout", 90)))
+    _wake_screen(adb)
+    state = detect_lock_state(adb)
 
     if state.lockscreen_showing:
         pin = unlock_config.get("pin")
@@ -79,6 +90,14 @@ def auto_unlock(
                 )
             unlocked = wait_until_unlocked(adb, timeout=float(unlock_config.get("timeout", 120)))
         if not unlocked:
+            if on_event:
+                on_event(
+                    {
+                        "type": "device-action",
+                        "action": "unlock",
+                        "detail": "Auto-unlock did not succeed. Unlock the device on its screen to continue.",
+                    }
+                )
             raise UnlockError("device did not unlock — check the PIN/pattern or unlock manually")
         if on_event:
             on_event({"type": "unlock", "state": "ok", "detail": "device unlocked"})

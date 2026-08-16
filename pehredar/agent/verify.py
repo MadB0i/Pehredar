@@ -12,9 +12,14 @@ def wait_for_adb(adb: ADBConnection, timeout: float = 90) -> bool:
     while time.time() < deadline:
         try:
             devices = adb.list_devices()
-            if any(d.status == "device" for d in devices):
+            present = [d for d in devices if d.status in ("device", "unauthorized")]
+            if present:
                 if not adb._device_serial:  # noqa: PLW0212 - internal helper reuse
-                    adb.connect()
+                    try:
+                        adb.connect()
+                    except ADBError:
+                        # unauthorized: the caller (auto_unlock) owns the checkpoint
+                        pass
                 return True
         except ADBError:
             pass

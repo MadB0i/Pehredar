@@ -38,6 +38,8 @@ class FakeADB:
         self.commands.append(command)
         if command.startswith("wm size"):
             return self.size, "", 0
+        if command.startswith("getprop sys.boot_completed"):
+            return "1", "", 0
         if command.startswith("dumpsys window"):
             return "mShowingLockscreen=" + ("true" if self.locked else "false"), "", 0
         if command.startswith("locksettings get-disabled"):
