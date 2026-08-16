@@ -110,7 +110,10 @@
       '<div class="adv-right">' +
 
       '<div class="card">' +
-      '<div class="card-title">ROOT AGENT</div>' +
+      '<div class="card-title-row">' +
+      '<span class="card-title">ROOT AGENT</span>' +
+      '<span class="mode-chip mono" id="agent-mode-chip">' + agentMode.toUpperCase() + "</span>" +
+      "</div>" +
       '<div class="setting-sub">Root Mode</div>' +
       '<div class="mode-row" id="agent-mode">' +
       '<button class="mode-btn active" data-mode="temporary">TEMPORARY</button>' +
@@ -118,31 +121,37 @@
       "</div>" +
       '<div class="agent-actions">' +
       '<button class="btn btn-ghost" id="agent-plan">' + window.icon("history", 15) + " Plan</button>" +
-      '<button class="btn btn-danger" id="agent-run" disabled>' + window.icon("plus", 15) + " Run</button>" +
+      '<button class="btn btn-danger" id="agent-run">' + window.icon("play", 15) + " Run</button>" +
+      '<button class="btn btn-stop" id="agent-stop" disabled>' + window.icon("close", 15) + " Stop</button>" +
       "</div>" +
       "</div>" +
 
       '<div class="card">' +
-      '<div class="card-title">USB LOCK RECOVERY</div>' +
+      '<div class="card-title-row"><span class="card-title">USB LOCK RECOVERY</span></div>' +
       '<p class="set-hint">Clears a forgotten PIN / pattern / password on test or lab phones. Only works when USB debugging is already enabled and authorized.</p>' +
       '<div class="agent-actions">' +
       '<button class="btn btn-ghost" id="lock-plan">' + window.icon("history", 15) + " Plan</button>" +
-      '<button class="btn btn-danger" id="lock-run" disabled>' + window.icon("plus", 15) + " Run</button>" +
+      '<button class="btn btn-danger" id="lock-run">' + window.icon("play", 15) + " Run</button>" +
+      '<button class="btn btn-stop" id="lock-stop" disabled>' + window.icon("close", 15) + " Stop</button>" +
       "</div>" +
       "</div>" +
 
       '<div class="card">' +
-      '<div class="card-title">AUTO-UNLOCK AFTER REBOOT</div>' +
-      '<p class="set-hint">After the agent reboots the device it will re-unlock it automatically. Provide your OWN device PIN or 3x3 pattern (digits 0-8). Sent securely via temp file, never saved.</p>' +
+      '<div class="card-title-row">' +
+      '<span class="card-title">AUTO-UNLOCK AFTER REBOOT</span>' +
+      '<span class="unlock-chip mono" id="unlock-chip">OFF</span>' +
+      "</div>" +
+      '<p class="set-hint">After the agent reboots the device it re-enters your own lock automatically so the run can continue. Credentials travel via a temp file — never saved.</p>' +
       '<div class="unlock-input-row">' +
-      '<label class="ul-label">PIN</label>' +
-      '<input type="password" id="agent-pin" placeholder="e.g. 1234" autocomplete="off" />' +
+      '<span class="ul-ico">' + window.icon("key", 15) + "</span>" +
+      '<input type="password" id="agent-pin" placeholder="Device PIN — e.g. 1234" autocomplete="off" spellcheck="false" />' +
       "</div>" +
       '<div class="unlock-input-row">' +
-      '<label class="ul-label">PATTERN</label>' +
-      '<input type="text" id="agent-pattern" placeholder="e.g. 012578" autocomplete="off" />' +
+      '<span class="ul-ico">' + window.icon("grid", 15) + "</span>" +
+      '<input type="text" id="agent-pattern" placeholder="3x3 pattern (digits 0-8) — e.g. 012578" autocomplete="off" spellcheck="false" />' +
       "</div>" +
-      '<p class="set-hint dim-hint">If the device shows "unauthorized" after reboot (encrypted ADB key) the agent will flag a manual unlock checkpoint instead.</p>' +
+      '<div class="unlock-status mono" id="unlock-status">No credentials — a manual unlock checkpoint will be shown.</div>' +
+      '<p class="set-hint dim-hint">Unauthorized after reboot (encrypted ADB key)? The agent shows a manual unlock checkpoint and waits for you.</p>' +
       "</div>" +
 
       '<div class="card">' +
@@ -160,16 +169,46 @@
     );
     el.querySelector("#agent-plan").addEventListener("click", () => startPlan("root"));
     el.querySelector("#agent-run").addEventListener("click", () => startRun("root"));
+    el.querySelector("#agent-stop").addEventListener("click", () => stopAgent("root"));
     el.querySelector("#lock-plan").addEventListener("click", () => startPlan("lock"));
     el.querySelector("#lock-run").addEventListener("click", () => startRun("lock"));
+    el.querySelector("#lock-stop").addEventListener("click", () => stopAgent("lock"));
+    el.querySelectorAll("#agent-pin, #agent-pattern").forEach((i) => i.addEventListener("input", unlockStatus));
     mounted = true;
   }
 
   function setMode(m) {
     agentMode = m;
-    const el = document.getElementById("view-advanced");
-    el.querySelectorAll("#agent-mode .mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === m));
+    const v = document.getElementById("view-advanced");
+    v.querySelectorAll("#agent-mode .mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === m));
+    const chip = v.querySelector("#agent-mode-chip");
+    if (chip) chip.textContent = m.toUpperCase();
     window.pehredar.settings.set({ agentMode: m });
+  }
+
+  function unlockStatus() {
+    const v = el();
+    const pin = v.querySelector("#agent-pin").value.trim();
+    const pattern = v.querySelector("#agent-pattern").value.trim();
+    const chip = v.querySelector("#unlock-chip");
+    const status = v.querySelector("#unlock-status");
+    if (pin && pattern) {
+      chip.textContent = "PIN + PATTERN";
+      chip.classList.add("ready");
+      status.textContent = "Both set — PIN is tried first, pattern as fallback.";
+    } else if (pin) {
+      chip.textContent = "PIN READY";
+      chip.classList.add("ready");
+      status.textContent = "PIN will be auto-entered after reboot.";
+    } else if (pattern) {
+      chip.textContent = "PATTERN READY";
+      chip.classList.add("ready");
+      status.textContent = "Pattern will be auto-drawn after reboot.";
+    } else {
+      chip.textContent = "OFF";
+      chip.classList.remove("ready");
+      status.textContent = "No credentials — a manual unlock checkpoint will be shown.";
+    }
   }
 
   function el() {
@@ -211,7 +250,6 @@
     v.querySelector("#scene-progress").innerHTML = "";
     setScene("idle");
     setHudStep("STANDBY");
-    v.querySelectorAll("#agent-run, #lock-run").forEach((b) => (b.disabled = true));
     logLine("agent engaged — " + (kind === "lock" ? "lock recovery" : "root") + " session");
   }
 
@@ -219,6 +257,7 @@
     running = on;
     const v = el();
     v.querySelectorAll("#agent-plan, #agent-run, #lock-plan, #lock-run").forEach((b) => (b.disabled = on));
+    v.querySelectorAll("#agent-stop, #lock-stop").forEach((b) => (b.disabled = !on));
   }
 
   function startPlan(kind) {
@@ -246,6 +285,11 @@
     reset(kind);
     setBusy(true);
     window.pehredar.agent.start(kind === "lock" ? "run-lock" : "run-root", { pin, pattern });
+  }
+
+  function stopAgent(kind) {
+    logLine("cancel requested — stopping " + (kind === "lock" ? "lock recovery" : "root agent"), "ln-warn");
+    window.pehredar.agent.cancel();
   }
 
   function renderFp() {
@@ -286,9 +330,6 @@
       })
       .join("");
     v.querySelector("#agent-plan-list").innerHTML = list;
-    const enable = !running && activeKind;
-    v.querySelector("#agent-run").disabled = !(enable && activeKind === "root");
-    v.querySelector("#lock-run").disabled = !(enable && activeKind === "lock");
   }
 
   function markStep(id, state, extra) {
@@ -367,6 +408,8 @@
         } else if (d.state === "ok") {
           setScene("unlocked");
           logLine("device session: " + d.detail, "ln-ok");
+          const st = el().querySelector("#unlock-status");
+          if (st) st.textContent = "Session restored after reboot.";
         } else {
           logLine("unlock: " + d.detail, "ln-dim");
         }
@@ -426,6 +469,8 @@
     if (s && s.agentMode) {
       agentMode = s.agentMode === "permanent" ? "permanent" : "temporary";
       v.querySelectorAll("#agent-mode .mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === agentMode));
+      const chip = v.querySelector("#agent-mode-chip");
+      if (chip) chip.textContent = agentMode.toUpperCase();
     }
     if (!bound) {
       window.pehredar.agent.onEvent(onEvent);

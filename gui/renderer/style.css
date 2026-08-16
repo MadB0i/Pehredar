@@ -1582,3 +1582,47 @@ body::before {
 }
 .unlock-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.18); }
 .dim-hint { color: var(--text-faint); font-size: 10.5px; }
+
+/* ---------- card header row + chips ---------- */
+.card-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s4); }
+.card-title-row .card-title { margin-bottom: 0; }
+.mode-chip, .unlock-chip {
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  color: var(--text-dim);
+  white-space: nowrap;
+  background: rgba(var(--accent-rgb), 0.06);
+}
+.unlock-chip.ready {
+  color: var(--green);
+  border-color: rgba(0, 255, 102, 0.45);
+  background: rgba(0, 255, 102, 0.06);
+  box-shadow: 0 0 12px rgba(0, 255, 102, 0.15);
+}
+
+/* ---------- stop button ---------- */
+.btn-stop {
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  color: var(--red);
+  background: transparent;
+  border-radius: 10px;
+  letter-spacing: 0.8px;
+}
+.btn-stop:hover:not(:disabled) { box-shadow: 0 0 16px rgba(255, 45, 85, 0.25); }
+.btn-stop:disabled { opacity: 0.35; cursor: default; }
+.btn-stop:disabled .icon { animation: hud-blink 0.8s infinite; }
+
+/* ---------- auto-unlock panel polish ---------- */
+.unlock-input-row .ul-ico { display: flex; align-items: center; color: var(--text-faint); }
+.unlock-status {
+  margin-top: var(--s3);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--border);
+}
+.unlock-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.18); }

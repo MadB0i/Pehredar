@@ -40,6 +40,7 @@ let currentDeviceSerial = null;
 let currentDeviceModel = null;
 let scanProcess = null;
 let agentProcess = null;
+let pendingAgent = null;
 
 // ---- settings persistence ----
 function settingsFile() {
@@ -334,8 +335,22 @@ function agentWorkdir() {
 
 // kind: "plan-root" | "run-root" | "plan-lock" | "run-lock"
 function runAgent(kind, opts) {
-  if (!currentDeviceSerial || agentProcess) return false;
+  if (!currentDeviceSerial) return false;
+  if (agentProcess) {
+    // previous agent (e.g. a just-finished plan) is still shutting down —
+    // replace it so a quick Plan -> Run works instead of silently no-oping.
+    pendingAgent = { kind, opts };
+    try {
+      agentProcess.kill();
+    } catch {
+      /* already dead */
+    }
+    return true;
+  }
+  return spawnAgent(kind, opts);
+}
 
+function spawnAgent(kind, opts) {
   const root = resolveProjectRoot();
   const args = ["-m", "pehredar.agent_cli", "-s", currentDeviceSerial, "--json-stream"];
   const settings = getSettings();
@@ -426,11 +441,17 @@ function runAgent(kind, opts) {
         /* already gone */
       }
     }
+    if (pendingAgent) {
+      const next = pendingAgent;
+      pendingAgent = null;
+      spawnAgent(next.kind, next.opts);
+    }
   });
   return true;
 }
 
 function killAgent() {
+  pendingAgent = null;
   if (agentProcess) {
     try {
       agentProcess.kill();
