@@ -87,9 +87,9 @@ def detect_lock_state(adb: ADBConnection) -> LockState:
                     lockscreen = True
                     break
                 continue
-            head, sep, tail = ln.partition("=")
+            _, sep, tail = ln.partition("=")
             if not sep:
-                head, sep, tail = ln.partition(":")
+                _, sep, tail = ln.partition(":")
             if sep and "true" in tail:
                 lockscreen = True
                 break
