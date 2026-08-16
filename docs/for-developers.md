@@ -93,12 +93,26 @@ pehredar-agent -s <serial> --plan-only --json-stream   # fingerprint + plan, no 
 pehredar-agent -s <serial> --mode temporary            # fastboot boot patched image (non-destructive)
 pehredar-agent -s <serial> --mode permanent --yes      # unlock + fastboot flash boot (ERASES ALL DATA)
 pehredar-agent -s <serial> --lock-recovery --yes       # clear forgotten PIN/pattern/password
+pehredar-agent -s <serial> --unlock-pin 1234           # auto-unlock PIN after the reboot step
+pehredar-agent -s <serial> --unlock-pattern 012578     # auto-unlock 3x3 pattern (digits 0-8)
+pehredar-agent -s <serial> --unlock-pin-file pin.txt   # read PIN/pattern from a file (never args)
+pehredar-agent -s <serial> --unlock-timeout 180        # seconds to wait for session (default 120)
+pehredar-agent -s <serial> --pin-attempts 1            # PIN attempts before giving up
 pehredar-agent -s <serial> --boot-img boot.img         # provide boot image when it can't be extracted
 pehredar-agent -s <serial> --magiskboot magiskboot     # explicit magiskboot path
 pehredar-agent --help
 ```
 
-Event types: `fp`, `plan`, `step` (`start|ok|error|skipped`), `detail`, `verify`, `done`, `error`. `confirm(step)` gates destructive steps in-process; the GUI collects consent up front and passes `--yes`.
+Event types: `fp`, `plan`, `step` (`start|ok|error|skipped`), `detail`, `verify`, `done`, `error`, plus `unlock` (`start|action|ok`) and `device-action` (`{action, detail}`). `confirm(step)` gates destructive steps in-process; the GUI collects consent up front and passes `--yes`.
+
+### Auto-unlock after reboot
+
+After the reboot step the agent re-authenticates automatically so the next steps don't hang on a lockscreen:
+
+- **Authorized + lockscreen** → sends the user's own PIN (`input text` + keyevent 66) or 3x3 pattern (`input swipe` along best-effort grid geometry derived from `wm size`).
+- **`unauthorized` session** (encrypted ADB key, firmware-dependent) → automation is impossible. The agent emits a `device-action` checkpoint and waits for a manual on-screen unlock, then resumes.
+
+Secrets policy: the PIN/pattern is never persisted. The GUI writes it to a temp file and passes `--unlock-pin-file` / `--unlock-pattern-file`; the CLI deletes the file after reading and `main.js` deletes it on process close.
 
 ### Agent internals (`pehredar/agent/`)
 
@@ -109,9 +123,10 @@ Event types: `fp`, `plan`, `step` (`start|ok|error|skipped`), `detail`, `verify`
 | `root_planner.py` | Support matrix → `RootPlan` of `PlanStep`s |
 | `magisk.py` | `has_root`, boot-image extract, magiskboot patch, unlock/apply |
 | `lockrecovery.py` | Lock-recovery method matrix + executor |
+| `unlock.py` | `detect_lock_state`, PIN/pattern auto-unlock, session waiters |
 | `verify.py` | `wait_for_adb`, re-run detection checks to confirm root/unlock |
 
-Honest scope: OEM unlock requires a **physical confirmation on the device screen** (volume key / tap) — the agent makes it a checkpoint and waits. Lock recovery only works when USB debugging is already enabled and authorized (you can't enable debugging on a locked phone — that's the natural safety gate).
+Honest scope: OEM unlock requires a **physical confirmation on the device screen** (volume key / tap) — the agent makes it a checkpoint and waits. Lock recovery only works when USB debugging is already enabled and authorized (you can't enable debugging on a locked phone — that's the natural safety gate). The Advanced view renders the agent as a cinematic live feed (device scene, terminal, operation timeline); the whole app UI is a premium futuristic overlay layered on the base design system in `style.css`.
 
 ## Contributing
 

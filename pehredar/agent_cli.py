@@ -16,7 +16,23 @@ def _emit(payload: dict, json_stream: bool) -> None:
         sys.stdout.flush()
 
 
-def _do_lock_recovery(adb: ADBConnection, json_stream: bool, auto_yes: bool, plan_only: bool = False) -> None:
+def _read_secret_file(path: str | None) -> str | None:
+    if not path:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
+
+
+def _do_lock_recovery(
+    adb: ADBConnection,
+    json_stream: bool,
+    auto_yes: bool,
+    plan_only: bool = False,
+    unlock_config: dict | None = None,
+) -> None:
     fp = fingerprint_device(adb)
     _emit({"type": "fp", "fp": fp.as_dict()}, json_stream)
     rooted = has_root(adb)
@@ -34,7 +50,7 @@ def _do_lock_recovery(adb: ADBConnection, json_stream: bool, auto_yes: bool, pla
             return True
         return click.confirm(f"Step '{step.title}' will {step.detail} Continue?")
 
-    result = run_lock_recovery(adb, fp, on_event=on_event, confirm=confirm, rooted=rooted)
+    result = run_lock_recovery(adb, fp, on_event=on_event, confirm=confirm, rooted=rooted, unlock_config=unlock_config)
     _emit({"type": "done", **result}, json_stream)
 
 
@@ -54,6 +70,12 @@ def _do_lock_recovery(adb: ADBConnection, json_stream: bool, auto_yes: bool, pla
 @click.option("--magiskboot", default=None, help="Path to magiskboot (default: discover from PATH / Magisk)")
 @click.option("--boot-img", default=None, help="Path to a boot.img if it cannot be extracted automatically")
 @click.option("--lock-recovery", is_flag=True, help="Run USB lock recovery (clear PIN/pattern/password) instead of root")
+@click.option("--unlock-pin", default=None, help="Known PIN of your own device, auto-entered after reboots")
+@click.option("--unlock-pin-file", default=None, help="Path to a file containing the PIN (avoid process-list exposure)")
+@click.option("--unlock-pattern", default=None, help="Known 3x3 pattern (digits 0-8, e.g. 012578) auto-drawn after reboots")
+@click.option("--unlock-pattern-file", default=None, help="Path to a file containing the pattern digits")
+@click.option("--unlock-timeout", default=120, type=int, help="Seconds to wait for device to unlock after reboot")
+@click.option("--pin-attempts", default=1, type=int, help="PIN/pattern injection attempts before giving up")
 @click.option("--json-stream", is_flag=True, help="Emit one JSON line per event to stdout")
 def main(
     serial: str,
@@ -66,9 +88,22 @@ def main(
     magiskboot: str,
     boot_img: str,
     lock_recovery: bool,
+    unlock_pin: str,
+    unlock_pin_file: str,
+    unlock_pattern: str,
+    unlock_pattern_file: str,
+    unlock_timeout: int,
+    pin_attempts: int,
     json_stream: bool,
 ) -> None:
     """Pehredar Agent - automated Android root + USB lock recovery for owned/authorized devices"""
+    unlock_config = {
+        "pin": unlock_pin or _read_secret_file(unlock_pin_file),
+        "pattern": unlock_pattern or _read_secret_file(unlock_pattern_file),
+        "timeout": unlock_timeout,
+        "attempts": pin_attempts,
+    }
+
     try:
         adb = ADBConnection(serial=serial, adb_path=adb_path or "adb")
         device_serial = adb.connect()
@@ -79,7 +114,7 @@ def main(
 
     try:
         if lock_recovery:
-            _do_lock_recovery(adb, json_stream, auto_yes, plan_only)
+            _do_lock_recovery(adb, json_stream, auto_yes, plan_only, unlock_config)
             return
 
         fp = fingerprint_device(adb)
@@ -100,6 +135,7 @@ def main(
             workdir=workdir,
             magiskboot_path=magiskboot or None,
             boot_img=boot_img or None,
+            unlock_config=unlock_config,
             on_event=lambda p: _emit(p, json_stream),
             confirm=lambda step: auto_yes or click.confirm(f"{step.title}: {step.detail}\nContinue?"),
         )

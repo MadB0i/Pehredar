@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld("pehredar", {
   },
   deviceInfo: () => ipcRenderer.invoke("device:info"),
   agent: {
-    start: (kind) => ipcRenderer.send("agent:start", kind),
+    start: (kind, opts) => ipcRenderer.send("agent:start", kind, opts),
     cancel: () => ipcRenderer.send("agent:cancel"),
     onEvent: (callback) => {
       ipcRenderer.on("agent-event", (_event, data) => callback(data));

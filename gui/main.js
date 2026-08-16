@@ -333,7 +333,7 @@ function agentWorkdir() {
 }
 
 // kind: "plan-root" | "run-root" | "plan-lock" | "run-lock"
-function runAgent(kind) {
+function runAgent(kind, opts) {
   if (!currentDeviceSerial || agentProcess) return false;
 
   const root = resolveProjectRoot();
@@ -343,6 +343,25 @@ function runAgent(kind) {
     args.push("--adb-path", settings.adbPath.trim());
   }
   args.push("--workdir", agentWorkdir());
+
+  // unlock secrets travel via temp files so they never appear in the process list
+  const tempFiles = [];
+  try {
+    if (opts && opts.pin) {
+      const f = path.join(app.getPath("temp"), `pehredar-pin-${process.pid}.txt`);
+      fs.writeFileSync(f, String(opts.pin), "utf8");
+      tempFiles.push(f);
+      args.push("--unlock-pin-file", f);
+    }
+    if (opts && opts.pattern) {
+      const f = path.join(app.getPath("temp"), `pehredar-pat-${process.pid}.txt`);
+      fs.writeFileSync(f, String(opts.pattern), "utf8");
+      tempFiles.push(f);
+      args.push("--unlock-pattern-file", f);
+    }
+  } catch (e) {
+    /* ignore temp write errors */
+  }
 
   if (kind === "plan-root" || kind === "run-root") {
     args.push("--mode", settings.agentMode === "permanent" ? "permanent" : "temporary");
@@ -400,6 +419,13 @@ function runAgent(kind) {
     }
     agentEvent({ type: "exit", code });
     agentProcess = null;
+    for (const f of tempFiles) {
+      try {
+        fs.unlinkSync(f);
+      } catch {
+        /* already gone */
+      }
+    }
   });
   return true;
 }
@@ -586,7 +612,7 @@ function exportScan(id) {
 ipcMain.on("device:start", () => startDevicePolling());
 ipcMain.on("scan:start", () => startScan());
 ipcMain.on("scan:cancel", () => killScan());
-ipcMain.on("agent:start", (_e, kind) => runAgent(kind));
+ipcMain.on("agent:start", (_e, kind, opts) => runAgent(kind, opts));
 ipcMain.on("agent:cancel", () => killAgent());
 
 ipcMain.handle("fastboot:detect", async () => {

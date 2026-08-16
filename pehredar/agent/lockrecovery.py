@@ -6,6 +6,7 @@ from ..adb import ADBConnection, ADBError
 from .fingerprint import DeviceFingerprint
 from .magisk import has_root
 from .root_planner import PlanStep
+from .verify import wait_for_adb
 
 
 @dataclass
@@ -65,6 +66,7 @@ def run_lock_recovery(
     on_event=None,
     confirm=None,
     rooted: bool | None = None,
+    unlock_config: dict | None = None,
 ) -> dict:
     rooted = has_root(adb) if rooted is None else rooted
     plan = build_lock_recovery_plan(fp, rooted)
@@ -89,6 +91,15 @@ def run_lock_recovery(
                 )
             elif step.id == "reboot":
                 adb.host("reboot")
+                # after reboot the lock is gone (keys cleared); still ensure an
+                # authorized+unlocked session so verification can run.
+                from . import auto_unlock
+
+                if on_event:
+                    on_event({"type": "step", "id": step.id, "title": step.title, "state": "running"})
+                if not wait_for_adb(adb):
+                    raise ADBError("device did not come back online after reboot")
+                auto_unlock(adb, unlock_config, on_event)
             elif step.id == "verify":
                 stdout, _, code = adb.run_command("locksettings get-disabled 2>/dev/null")
                 detail = (stdout or "unknown").strip()

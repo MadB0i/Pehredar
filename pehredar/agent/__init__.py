@@ -13,7 +13,78 @@ from .magisk import (
     unlock_bootloader,
 )
 from .root_planner import PlanStep, RootPlan, build_root_plan
+from .unlock import (
+    UnlockError,
+    detect_lock_state,
+    unlock_with_pattern,
+    unlock_with_pin,
+    wait_until_authorized,
+    wait_until_unlocked,
+)
 from .verify import verify_root, verify_unlock, wait_for_adb
+
+
+def auto_unlock(
+    adb: ADBConnection,
+    unlock_config: dict | None = None,
+    on_event=None,
+) -> None:
+    """Re-gain an authorized, unlocked session after a reboot.
+
+    - Device reports `unauthorized` (credential-encrypted ADB key): emits a
+      `device-action` checkpoint and waits for the user to unlock once on the
+      screen — this cannot be automated.
+    - Authorized but lockscreen showing: injects the user's own PIN/pattern if
+      provided, otherwise emits a manual checkpoint and waits.
+    """
+    unlock_config = unlock_config or {}
+    if on_event:
+        on_event({"type": "unlock", "state": "start", "detail": "checking device state after reboot"})
+
+    state = detect_lock_state(adb)
+    if not state.authorized:
+        if on_event:
+            on_event(
+                {
+                    "type": "device-action",
+                    "action": "unlock",
+                    "detail": "ADB key is stored in encrypted storage. Unlock the device on its screen once to re-authorize this computer.",
+                }
+            )
+        if not wait_until_authorized(adb, timeout=float(unlock_config.get("timeout", 180))):
+            raise UnlockError("device did not re-authorize after reboot — unlock it on-screen and try again")
+        state = detect_lock_state(adb)
+
+    if state.lockscreen_showing:
+        pin = unlock_config.get("pin")
+        pattern = unlock_config.get("pattern")
+        attempts = int(unlock_config.get("attempts", 1))
+        unlocked = False
+        if pin:
+            if on_event:
+                on_event({"type": "unlock", "state": "action", "detail": "auto-entering PIN on device"})
+            unlocked = unlock_with_pin(adb, pin, attempts=attempts)
+        elif pattern:
+            if on_event:
+                on_event({"type": "unlock", "state": "action", "detail": "auto-drawing pattern on device"})
+            unlocked = unlock_with_pattern(adb, pattern, attempts=attempts)
+        else:
+            if on_event:
+                on_event(
+                    {
+                        "type": "device-action",
+                        "action": "unlock",
+                        "detail": "Enter the device lock on its screen to continue (or provide PIN/pattern to auto-unlock).",
+                    }
+                )
+            unlocked = wait_until_unlocked(adb, timeout=float(unlock_config.get("timeout", 120)))
+        if not unlocked:
+            raise UnlockError("device did not unlock — check the PIN/pattern or unlock manually")
+        if on_event:
+            on_event({"type": "unlock", "state": "ok", "detail": "device unlocked"})
+    else:
+        if on_event:
+            on_event({"type": "unlock", "state": "ok", "detail": "device already accessible"})
 
 
 def run_root_agent(
@@ -23,6 +94,7 @@ def run_root_agent(
     workdir: str = ".pehredar-agent",
     magiskboot_path: str | None = None,
     boot_img: str | None = None,
+    unlock_config: dict | None = None,
     on_event=None,
     confirm=None,
 ) -> dict:
@@ -70,9 +142,11 @@ def run_root_agent(
                 apply_boot(fb, patched_img, mode)
             elif step.id == "reboot":
                 # fastboot boot already boots the device; a flash already reboots.
-                # wait for the device to come back over adb before verifying.
+                # wait for the device to come back over adb, then re-establish an
+                # authorized+unlocked session before verifying root.
                 if not wait_for_adb(adb):
                     raise ADBError("device did not come back online after reboot")
+                auto_unlock(adb, unlock_config, on_event)
             elif step.id == "verify":
                 result = verify_root(adb)
                 if on_event:
@@ -102,6 +176,8 @@ __all__ = [
     "LockRecoveryPlan",
     "PlanStep",
     "RootPlan",
+    "UnlockError",
+    "auto_unlock",
     "build_lock_recovery_plan",
     "build_root_plan",
     "fingerprint_device",

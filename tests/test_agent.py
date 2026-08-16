@@ -49,6 +49,12 @@ class FakeADB:
     def list_devices(self):
         return [SimpleNamespace(serial="XYZ", status="device")]
 
+    @property
+    def serial(self):
+        return "XYZ"
+
+    _device_serial = "XYZ"
+
 
 def fp(**overrides):
     base = {
