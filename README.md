@@ -4,11 +4,13 @@
 
 ## Features
 
-- **Comprehensive Detection**: Checks for su binaries, root management apps, build tags, debuggable flags, writable partitions, busybox, and Magisk hide indicators
+- **Comprehensive Detection**: Checks for su binaries, root management apps, build tags, debuggable flags, writable partitions, busybox, Magisk hide indicators, plus spyware indicators (hidden apps, accessibility services, device admin, sensitive permissions)
 - **Risk Scoring**: Aggregates results into Low/Medium/High risk levels
 - **Dual Output**: Rich terminal table + JSON report file
+- **JSON Streaming**: `--json-stream` emits one JSON line per check for GUI/CI consumption
 - **Modular Design**: Each check is a separate function for easy extension
 - **Graceful Error Handling**: Handles no-device, unauthorized, and ADB errors
+- **Electron Desktop GUI**: Animated network graph of checks in `gui/`
 
 ## Installation
 
@@ -59,8 +61,19 @@ pehredar --no-table
 # Quiet mode (summary only)
 pehredar -q
 
+# Stream one JSON line per check (for GUI / CI)
+pehredar --json-stream -o report.json
+
 # Help
 pehredar --help
+```
+
+`--json-stream` prints a line per check as it completes:
+
+```
+{"check": "check_su_binary", "status": "running"}
+{"check": "check_su_binary", "status": "done", "passed": true, "severity": "info", "evidence": "..."}
+{"status": "complete", "risk_level": "Low", "risk_score": 0, "summary": {...}, "checks": [...]}
 ```
 
 ## Detection Checks
@@ -74,6 +87,10 @@ pehredar --help
 | **Writable /system** | Verifies `/system` partition mount flags | High |
 | **BusyBox** | Detects busybox binary in common paths | Medium |
 | **Magisk Hide** | Checks for mount namespace anomalies and Magisk device nodes | Medium |
+| **Hidden Apps** | Third-party apps with no launcher icon (`pm list packages -3` vs launchable activities) | Medium |
+| **Accessibility Services** | Flags enabled accessibility services that aren't known screen readers | High |
+| **Device Admin** | Flags third-party device admin / owner apps (`dpm list-owners`, `dumpsys device_policy`) | High |
+| **Sensitive Permissions** | Hidden apps holding SMS + Camera + Mic + Location simultaneously | High |
 
 ## Output
 
@@ -147,13 +164,45 @@ pehredar/
 │   ├── cli.py           # CLI entry point (click)
 │   ├── adb.py           # ADB connection wrapper
 │   ├── checks/          # Detection checks (add new ones here)
-│   │   └── __init__.py
+│   │   ├── __init__.py  # CheckResult + ALL_CHECKS registry
+│   │   └── spyware.py   # Hidden apps, accessibility, device admin, permissions
 │   ├── scoring.py       # Risk scoring
 │   └── output.py        # Rich table + JSON report
+├── gui/                 # Electron desktop app
+│   ├── main.js          # Main process: device polling + CLI subprocess + scan storage
+│   ├── preload.js       # contextBridge IPC
+│   ├── assets/          # Generated shield/eye app icon (icon.png, icon.ico)
+│   ├── scripts/         # gen-icon.js (dependency-free PNG/ICO generator)
+│   └── renderer/        # Multi-view UI: views/, icons.js, components.js, app.js, graph.js
+│       └── vendor/      # Vendored chart.umd.js (offline Chart.js)
 ├── tests/               # Pytest suite (mocked ADB)
 ├── pyproject.toml
 └── README.md
 ```
+
+## Desktop GUI (Electron)
+
+The `gui/` folder contains a multi-view Electron app that wraps the Python CLI. It polls `adb devices` every 2s and surfaces connection status in the top bar. Views:
+
+- **Dashboard** — device info, last scan summary, and a Chart.js risk trend line
+- **Scan** — spawns `python -m pehredar.cli --json-stream` as a subprocess and visualizes each check as a node in an animated network graph (green = pass, red = fail, yellow = running), then shows the final risk score + full evidence panel
+- **History** — persistent scan records (JSON files under the app's `userData/scans` dir); clicking a row opens a detail overlay
+- **Settings** — storage folder, open folder, clear history
+- **About** — app info
+
+Scan detail views (in-app and the Dashboard "View Details") have an **Export Report** button that writes a printable HTML report to `userData/reports/<id>.html` and opens it in the default browser.
+
+```bash
+cd gui
+npm install
+npm start          # run in dev
+
+# Build distributable installers
+npm run build:win     # -> dist/Pehredar Setup *.exe (NSIS)
+npm run build:linux   # -> dist/*.AppImage
+```
+
+The packaged app bundles the `pehredar` Python package via `extraResources`. The target machine still needs **Python** and **adb** on PATH (or set the `PEHREDAR_PY` env var to a custom Python interpreter).
 
 ## Extending Checks
 
@@ -172,6 +221,8 @@ def check_custom_indicator(adb: ADBConnection) -> CheckResult:
 # Add to ALL_CHECKS list
 ALL_CHECKS.append(check_custom_indicator)
 ```
+
+Larger groups of related checks can live in a separate module (like `checks/spyware.py`) — define a `SPYWARE_CHECKS`-style list and `ALL_CHECKS.extend(...)` it from `checks/__init__.py`.
 
 ## Development
 

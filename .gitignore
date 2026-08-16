@@ -8,3 +8,10 @@ dist/
 pehredar_report.json
 .venv/
 venv/
+
+# Electron GUI
+gui/node_modules/
+gui/dist/
+gui/out.log
+gui/err.log
+gui/smoke-result.json

@@ -240,18 +240,27 @@ ALL_CHECKS = [
     check_magisk_hide,
 ]
 
+from . import spyware
 
-def run_all_checks(adb: ADBConnection) -> list[CheckResult]:
+ALL_CHECKS.extend(spyware.SPYWARE_CHECKS)
+
+
+def run_all_checks(adb: ADBConnection, on_check=None) -> list[CheckResult]:
     results = []
     for check_func in ALL_CHECKS:
+        slug = check_func.__name__
+        if on_check is not None:
+            on_check("running", slug, None)
         try:
             result = check_func(adb)
-            results.append(result)
         except Exception as e:  # noqa: BLE001 - isolate per-check failures
-            results.append(CheckResult(
+            result = CheckResult(
                 name=check_func.__name__,
                 passed=False,
                 evidence=f"Check failed with error: {e!s}",
                 severity="high",
-            ))
+            )
+        if on_check is not None:
+            on_check("done", slug, result)
+        results.append(result)
     return results

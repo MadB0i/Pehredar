@@ -1,0 +1,51 @@
+{
+  "name": "pehredar-gui",
+  "version": "1.0.0",
+  "description": "Pehredar Desktop - Android root/spyware detection GUI wrapping the Pehredar CLI",
+  "main": "main.js",
+  "author": "Pehredar Contributors",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "chart.js": "^4.5.1",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.pehredar.desktop",
+    "productName": "Pehredar",
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../pehredar",
+        "to": "pehredar"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  }
+}

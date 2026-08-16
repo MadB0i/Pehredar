@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;" />
+  <title>Pehredar</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Splash -->
+  <div class="splash" id="splash">
+    <div class="splash-mark" id="splash-mark"></div>
+    <div class="splash-name">PEHREDAR</div>
+    <div class="splash-sub">ANDROID ROOT DETECTION</div>
+    <div class="splash-bar"><span></span></div>
+  </div>
+
+  <!-- App shell -->
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon" id="brand-icon"></span>
+        <span class="brand-word">PEHREDAR</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item" data-view="dashboard">
+          <span class="nav-ico" id="nav-ico-dashboard"></span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="scan">
+          <span class="nav-ico" id="nav-ico-scan"></span>
+          <span class="nav-label">Scan</span>
+        </button>
+        <button class="nav-item" data-view="history">
+          <span class="nav-ico" id="nav-ico-history"></span>
+          <span class="nav-label">History</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-ico" id="nav-ico-settings"></span>
+          <span class="nav-label">Settings</span>
+        </button>
+        <button class="nav-item" data-view="about">
+          <span class="nav-ico" id="nav-ico-about"></span>
+          <span class="nav-label">About</span>
+        </button>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="mono">v1.0.0</span>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="device-chip" id="device-chip">
+          <span class="conn-dot"></span>
+          <div class="device-meta">
+            <span class="device-model mono" id="device-model">NO DEVICE</span>
+            <span class="device-serial mono" id="device-serial">polling adb…</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section id="view-dashboard" class="view"></section>
+        <section id="view-scan" class="view"></section>
+        <section id="view-history" class="view"></section>
+        <section id="view-settings" class="view"></section>
+        <section id="view-about" class="view"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scan detail overlay -->
+  <div id="detail-overlay" class="overlay hidden">
+    <div class="overlay-backdrop" id="detail-backdrop"></div>
+    <div class="overlay-card">
+      <div class="overlay-head">
+        <span class="overlay-title">SCAN DETAIL</span>
+        <div class="overlay-actions">
+          <button id="detail-export" class="btn btn-ghost">
+            <span class="btn-ico" id="btn-ico-export"></span> Export Report
+          </button>
+          <button id="detail-close" class="btn btn-ghost">Close</button>
+        </div>
+      </div>
+      <div id="detail-content" class="results-panel"></div>
+    </div>
+  </div>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="icons.js"></script>
+  <script src="components.js"></script>
+  <script src="graph.js"></script>
+  <script src="views/dashboard.js"></script>
+  <script src="views/scan.js"></script>
+  <script src="views/history.js"></script>
+  <script src="views/detail.js"></script>
+  <script src="views/settings.js"></script>
+  <script src="views/about.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
