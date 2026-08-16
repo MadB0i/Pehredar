@@ -403,8 +403,13 @@
         break;
       case "unlock":
         if (d.state === "action") {
-          setScene("action", "AUTO-UNLOCK");
+          const secret = d.secret || "";
+          setScene("action", d.method === "pattern" ? "PATTERN " + secret : "PIN " + secret);
           logLine("auto-unlock: " + d.detail, "ln-cmd");
+          const st = el().querySelector("#unlock-status");
+          if (st && secret) {
+            st.textContent = (d.method === "pattern" ? "Drawing pattern " : "Entering PIN ") + secret + " on device…";
+          }
         } else if (d.state === "ok") {
           setScene("unlocked");
           logLine("device session: " + d.detail, "ln-ok");

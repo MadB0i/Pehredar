@@ -73,9 +73,26 @@ def detect_lock_state(adb: ADBConnection) -> LockState:
     lockscreen = False
     try:
         out, _, _ = adb.run_command(
-            "dumpsys window | grep -E 'mDreamingLockscreen|mShowingLockscreen|mKeyguardShowing'"
+            "dumpsys window | grep -E 'mDreamingLockscreen|mShowingLockscreen|mKeyguardShowing|isStatusBarKeyguard|mCurrentFocus'"
         )
-        lockscreen = "true" in out.lower()
+        # Flags are "true"/"false"; only count "true" values (a locked-off
+        # keyguard still prints "mKeyguardShowing=false", which must NOT count).
+        # mCurrentFocus pointing at a keyguard window also counts.
+        for ln in out.splitlines():
+            ln = ln.strip().lower()
+            if not ln:
+                continue
+            if "mcurrentfocus" in ln:
+                if "keyguard" in ln:
+                    lockscreen = True
+                    break
+                continue
+            head, sep, tail = ln.partition("=")
+            if not sep:
+                head, sep, tail = ln.partition(":")
+            if sep and "true" in tail:
+                lockscreen = True
+                break
     except ADBError:
         pass
 
@@ -99,6 +116,21 @@ def _swipe_up(adb: ADBConnection) -> None:
     adb.run_command(f"input swipe {w // 2} {int(h * 0.85)} {w // 2} {int(h * 0.2)} 120")
 
 
+def _type_pin(adb: ADBConnection, pin: str) -> None:
+    """Type the PIN into the keyguard bouncer.
+
+    Uses explicit keycodes for digits (KEYCODE_0 = 7 .. KEYCODE_9 = 16) because
+    `input text` does not reach the PIN pad on many ROMs. Non-digit chars fall
+    back to `input text`.
+    """
+    if pin.isdigit():
+        for ch in pin:
+            adb.run_command(f"input keyevent {7 + int(ch)}")
+            time.sleep(0.12)
+    else:
+        adb.run_command(f"input text {pin}")
+
+
 def _grid_point(seq_index: int, w: int, h: int) -> tuple[int, int]:
     # 3x3 pattern grid: indices 0..8, row-major. Coordinates are inset from
     # screen edges and centered on the pattern widget region.
@@ -111,6 +143,28 @@ def _grid_point(seq_index: int, w: int, h: int) -> tuple[int, int]:
     return x, y
 
 
+def _draw_pattern(adb: ADBConnection, pattern: str) -> None:
+    """Draw a 3x3 pattern as ONE continuous gesture.
+
+    `input swipe` lifts the finger between segments, which a real pattern
+    never does — so we send DOWN -> MOVE... -> UP via motionevent.
+    """
+    w, h = _screen_size(adb)
+    pts = [int(c) for c in pattern if c.isdigit()]
+    if len(pts) < 2:
+        return
+    coords = [_grid_point(p, w, h) for p in pts]
+    x0, y0 = coords[0]
+    adb.run_command(f"input motionevent DOWN {x0} {y0}")
+    time.sleep(0.1)
+    for i in range(1, len(coords) - 1):
+        x, y = coords[i]
+        adb.run_command(f"input motionevent MOVE {x} {y}")
+        time.sleep(0.1)
+    x1, y1 = coords[-1]
+    adb.run_command(f"input motionevent UP {x1} {y1}")
+
+
 def unlock_with_pin(adb: ADBConnection, pin: str, attempts: int = 1) -> bool:
     """Inject the user's own PIN via input events. Returns True once unlocked."""
     for _ in range(max(1, attempts)):
@@ -120,10 +174,11 @@ def unlock_with_pin(adb: ADBConnection, pin: str, attempts: int = 1) -> bool:
         if not detect.lockscreen_showing:
             continue
         try:
+            _wake_screen(adb)
             _swipe_up(adb)
+            time.sleep(0.5)
+            _type_pin(adb, pin)
             time.sleep(0.4)
-            adb.run_command(f"input text {pin}")
-            time.sleep(0.3)
             adb.run_command("input keyevent 66")
         except ADBError:
             pass
@@ -134,7 +189,7 @@ def unlock_with_pin(adb: ADBConnection, pin: str, attempts: int = 1) -> bool:
 
 
 def unlock_with_pattern(adb: ADBConnection, pattern: str, attempts: int = 1) -> bool:
-    """Inject a 3x3 pattern (digits 0-8, e.g. '012578') as swipe gestures."""
+    """Inject a 3x3 pattern (digits 0-8, e.g. '012578') as one gesture."""
     for _ in range(max(1, attempts)):
         detect = detect_lock_state(adb)
         if detect.unlocked:
@@ -142,18 +197,10 @@ def unlock_with_pattern(adb: ADBConnection, pattern: str, attempts: int = 1) -> 
         if not detect.lockscreen_showing:
             continue
         try:
+            _wake_screen(adb)
             _swipe_up(adb)
-            time.sleep(0.4)
-            w, h = _screen_size(adb)
-            pts = [int(c) for c in pattern if c.isdigit()]
-            if len(pts) < 2:
-                return False
-            coords = [_grid_point(p, w, h) for p in pts]
-            for i in range(len(coords) - 1):
-                x1, y1 = coords[i]
-                x2, y2 = coords[i + 1]
-                adb.run_command(f"input swipe {x1} {y1} {x2} {y2} 180")
-                time.sleep(0.25)
+            time.sleep(0.5)
+            _draw_pattern(adb, pattern)
         except ADBError:
             pass
         time.sleep(1.0)

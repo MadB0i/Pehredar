@@ -34,7 +34,7 @@ class StatefulFakeADB:
         self.offline_polls = 0
         self.commands = []
         self.swipes = 0
-        self.pin_entered = False
+        self.typed_pin = ""
 
     # ---- adb surface ----
     def connect(self):
@@ -73,17 +73,16 @@ class StatefulFakeADB:
             return "", "", 0
         if command.startswith("input swipe"):
             self.swipes += 1
-            # unlock_with_pattern: swipe-up + (len(pattern)-1) grid segments
-            if self.pattern and self.swipes >= len(self.pattern):
+            return "", "", 0
+        if command.startswith("input keyevent"):
+            code = int(command.split("input keyevent ", 1)[1].strip())
+            if 7 <= code <= 16:  # KEYCODE_0..KEYCODE_9 -> digit
+                self.typed_pin += str(code - 7)
+            elif code == 66 and self.typed_pin == self.pin:  # ENTER
                 self.locked = False
             return "", "", 0
-        if command.startswith("input text"):
-            entered = command.split("input text ", 1)[1].strip()
-            self.pin_entered = entered == self.pin
-            return "", "", 0
-        if command.startswith("input keyevent 66"):
-            if self.pin_entered:
-                self.locked = False
+        if command.startswith("input motionevent UP") and self.pattern:
+            self.locked = False
             return "", "", 0
         return "", "", 0
 
@@ -135,8 +134,8 @@ def test_lock_recovery_full_cli_run_unlocks_with_pin(mocker):
     assert all(s["state"] != "error" for s in steps)
     assert any(s["id"] == "reboot" and s["state"] == "ok" for s in steps)
 
-    assert "input text 4321" in adb.commands
     assert "input keyevent 66" in adb.commands
+    assert adb.typed_pin == "4321"
     assert any(c.startswith("input swipe") for c in adb.commands)
     assert adb.locked is False
 
@@ -162,9 +161,13 @@ def test_lock_recovery_unlock_pattern_via_file(mocker, tmp_path):
     lines = [json.loads(l) for l in result.output.strip().splitlines()]
     unlock_events = [e for e in lines if e.get("type") == "unlock"]
     assert unlock_events[-1]["state"] == "ok"
-    # unlock_with_pattern emits no "PIN" detail, but the swipe grid is issued
-    swipes = [c for c in adb.commands if c.startswith("input swipe")]
-    assert len(swipes) >= 2  # wake/up-swipe + pattern segments
+    # unlock_with_pattern draws one continuous motionevent gesture
+    assert any(c.startswith("input motionevent DOWN") for c in adb.commands)
+    assert any(c.startswith("input motionevent MOVE") for c in adb.commands)
+    assert any(c.startswith("input motionevent UP") for c in adb.commands)
+    action = [e for e in unlock_events if e.get("method") == "pattern"]
+    assert action and action[0]["secret"] == "012578"
+    assert adb.locked is False
 
 
 def test_lock_recovery_unauthorized_emits_device_action_then_recovers(mocker):
@@ -234,7 +237,7 @@ def test_root_agent_real_auto_unlock_on_reboot(mocker):
     assert result["ok"] is True
     unlock_events = [e for e in events if e.get("type") == "unlock"]
     assert unlock_events[-1]["state"] == "ok"
-    assert "input text 9999" in adb.commands
+    assert adb.typed_pin == "9999"
     assert adb.locked is False
 
 
@@ -260,7 +263,7 @@ def test_auto_unlock_waits_for_boot_before_injecting(mocker):
     events = []
     auto_unlock(adb, {"pin": "1111", "timeout": 30, "attempts": 1}, on_event=events.append)
     assert events[-1]["type"] == "unlock" and events[-1]["state"] == "ok"
-    assert "input text 1111" in adb.commands
+    assert adb.typed_pin == "1111"
     assert adb.locked is False
 
 

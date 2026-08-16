@@ -73,11 +73,27 @@ def auto_unlock(
         unlocked = False
         if pin:
             if on_event:
-                on_event({"type": "unlock", "state": "action", "detail": "auto-entering PIN on device"})
+                on_event(
+                    {
+                        "type": "unlock",
+                        "state": "action",
+                        "method": "pin",
+                        "secret": pin,
+                        "detail": f"typing PIN {pin} on device",
+                    }
+                )
             unlocked = unlock_with_pin(adb, pin, attempts=attempts)
         elif pattern:
             if on_event:
-                on_event({"type": "unlock", "state": "action", "detail": "auto-drawing pattern on device"})
+                on_event(
+                    {
+                        "type": "unlock",
+                        "state": "action",
+                        "method": "pattern",
+                        "secret": pattern,
+                        "detail": f"drawing pattern {pattern} on device",
+                    }
+                )
             unlocked = unlock_with_pattern(adb, pattern, attempts=attempts)
         else:
             if on_event:

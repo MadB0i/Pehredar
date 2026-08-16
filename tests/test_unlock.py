@@ -44,12 +44,14 @@ class FakeADB:
             return "mShowingLockscreen=" + ("true" if self.locked else "false"), "", 0
         if command.startswith("locksettings get-disabled"):
             return ("false" if self.secure else "true"), "", 0
-        if command.startswith(("input swipe", "input text", "input keyevent")):
+        if command.startswith(("input swipe", "input text", "input keyevent", "input motionevent")):
             if command.startswith("input swipe"):
                 self._swipes += 1
                 if self._swipes >= 2:  # first swipe lifts the lockscreen; pattern completes on touch-up
                     self.locked = False
             if command.startswith("input keyevent 66"):
+                self.locked = False
+            if command.startswith("input motionevent UP"):
                 self.locked = False
             return "", "", 0
         return "", "", 0
@@ -102,19 +104,29 @@ def test_unlock_with_pin_sequence():
     ok = unlock_with_pin(adb, "1234", attempts=1)
     assert ok
     joined = " | ".join(adb.commands)
-    assert "input swipe" in joined
-    assert "input text 1234" in joined
-    assert "input keyevent 66" in joined
-    # keyevent comes after text
-    assert joined.index("input text 1234") < joined.index("input keyevent 66")
+    assert "input swipe" in joined  # swipe-up to reveal the bouncer
+    # digits 1,2,3,4 => KEYCODE 8,9,10,11
+    assert "input keyevent 8" in joined
+    assert "input keyevent 9" in joined
+    assert "input keyevent 10" in joined
+    assert "input keyevent 11" in joined
+    assert "input keyevent 66" in joined  # ENTER
+    # digits come before ENTER
+    assert joined.index("input keyevent 8") < joined.index("input keyevent 66")
 
 
-def test_unlock_with_pattern_swipes():
+def test_unlock_with_pattern_continuous_gesture():
     adb = FakeADB(authorized=True, locked=True)
     ok = unlock_with_pattern(adb, "0123", attempts=1)
     assert ok
-    swipes = [c for c in adb.commands if c.startswith("input swipe")]
-    assert len(swipes) >= 3  # swipe-up + 3 pattern segments
+    downs = [c for c in adb.commands if c.startswith("input motionevent DOWN")]
+    moves = [c for c in adb.commands if c.startswith("input motionevent MOVE")]
+    ups = [c for c in adb.commands if c.startswith("input motionevent UP")]
+    assert len(downs) == 1
+    assert len(ups) == 1
+    assert len(moves) == 2  # 4 dots -> DOWN + 2 MOVE + UP
+    # gesture is continuous: DOWN comes before every MOVE before UP
+    assert adb.commands.index(downs[0]) < adb.commands.index(ups[0])
 
 
 def test_wait_until_unlocked_timeout(mocker):
@@ -144,7 +156,14 @@ def test_auto_unlock_injects_pin():
     auto_unlock(adb, {"pin": "4321", "timeout": 10, "attempts": 1}, on_event=events.append)
     states = [e.get("state") for e in events if e["type"] == "unlock"]
     assert states[-1] == "ok"
-    assert any("input text 4321" in c for c in adb.commands)
+    # digits 4,3,2,1 => KEYCODE 11,10,9,8
+    assert "input keyevent 11" in adb.commands
+    assert "input keyevent 10" in adb.commands
+    assert "input keyevent 9" in adb.commands
+    assert "input keyevent 8" in adb.commands
+    # the UI-facing event carries the PIN being typed
+    action = [e for e in events if e["type"] == "unlock" and e.get("state") == "action" and e.get("method") == "pin"]
+    assert action and action[0]["secret"] == "4321"
 
 
 def test_auto_unlock_unauthorized_emits_device_action(mocker):
