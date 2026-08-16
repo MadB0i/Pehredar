@@ -2,17 +2,17 @@
   "use strict";
 
   const NODES = [
-    { slug: "check_su_binary", label: "SU BINARY" },
-    { slug: "check_root_packages", label: "ROOT PKGS" },
-    { slug: "check_build_tags", label: "BUILD TAGS" },
-    { slug: "check_debuggable_secure", label: "DEBUGGABLE" },
-    { slug: "check_writable_system", label: "WRITABLE SYS" },
-    { slug: "check_busybox", label: "BUSYBOX" },
-    { slug: "check_magisk_hide", label: "MAGISK HIDE" },
-    { slug: "check_hidden_apps", label: "HIDDEN APPS" },
-    { slug: "check_accessibility_services", label: "ACCESSIBILITY" },
-    { slug: "check_device_admin", label: "DEVICE ADMIN" },
-    { slug: "check_sensitive_permissions", label: "SENSITIVE PERMS" },
+    { slug: "check_su_binary", label: "SU BINARY", simple: "SUPER USER" },
+    { slug: "check_root_packages", label: "ROOT PKGS", simple: "ROOT APPS" },
+    { slug: "check_build_tags", label: "BUILD TAGS", simple: "SOFTWARE" },
+    { slug: "check_debuggable_secure", label: "DEBUGGABLE", simple: "DEBUG ACCESS" },
+    { slug: "check_writable_system", label: "WRITABLE SYS", simple: "STORAGE LOCK" },
+    { slug: "check_busybox", label: "BUSYBOX", simple: "HACK TOOLKIT" },
+    { slug: "check_magisk_hide", label: "MAGISK HIDE", simple: "HIDE ROOT" },
+    { slug: "check_hidden_apps", label: "HIDDEN APPS", simple: "HIDDEN APPS" },
+    { slug: "check_accessibility_services", label: "ACCESSIBILITY", simple: "SCREEN READ" },
+    { slug: "check_device_admin", label: "DEVICE ADMIN", simple: "DEVICE CONTROL" },
+    { slug: "check_sensitive_permissions", label: "SENSITIVE PERMS", simple: "FULL SPY ACCESS" },
   ];
 
   const COLORS = {
@@ -20,10 +20,12 @@
     running: "#ffd700",
     pass: "#00ff66",
     fail: "#ff2d55",
+    inconclusive: "#ffd700",
     center: "#00e5ff",
     edgeRunning: "rgba(255,215,0,0.5)",
     edgePass: "rgba(0,255,102,0.45)",
     edgeFail: "rgba(255,45,85,0.5)",
+    edgeInconclusive: "rgba(255,215,0,0.45)",
     grid: "rgba(148,184,255,0.05)",
     label: "rgba(125,138,160,0.85)",
     ring: "rgba(230,237,247,0.2)",
@@ -50,9 +52,10 @@
 
       nodes = NODES.map((def, i) => {
         const ang = -Math.PI / 2 + (2 * Math.PI * i) / NODES.length;
+        const simpleOn = window.SimpleLabels && window.SimpleLabels.enabled;
         return {
           slug: def.slug,
-          label: def.label,
+          label: simpleOn && def.simple ? def.simple : def.label,
           x: cx + radius * Math.cos(ang),
           y: cy + radius * Math.sin(ang),
           status: "pending",
@@ -85,7 +88,9 @@
           ? COLORS.edgeRunning
           : node.status === "pass"
             ? COLORS.edgePass
-            : COLORS.edgeFail;
+            : node.status === "inconclusive"
+              ? COLORS.edgeInconclusive
+              : COLORS.edgeFail;
       ctx.beginPath();
       ctx.moveTo(center.x, center.y);
       ctx.lineTo(node.x, node.y);
@@ -160,10 +165,11 @@
       if (node) node.status = "running";
     }
 
-    function markDone(slug, passed) {
+    function markDone(slug, outcome) {
       const node = nodes.find((n) => n.slug === slug);
       if (node) {
-        node.status = passed ? "pass" : "fail";
+        node.status =
+          outcome === "pass" ? "pass" : outcome === "inconclusive" ? "inconclusive" : "fail";
         node.flash = 1;
       }
     }

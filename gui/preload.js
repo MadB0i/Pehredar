@@ -19,7 +19,26 @@ contextBridge.exposeInMainWorld("pehredar", {
   onScanSaved: (callback) => {
     ipcRenderer.on("scan-saved", (_event, data) => callback(data));
   },
+  onUninstallProgress: (callback) => {
+    ipcRenderer.on("uninstall-progress", (_event, data) => callback(data));
+  },
+  packages: {
+    system: () => ipcRenderer.invoke("app:system-packages"),
+    labels: (pkgs) => ipcRenderer.invoke("app:labels", pkgs),
+    uninstall: (pkgs) => ipcRenderer.invoke("app:uninstall", pkgs),
+  },
   deviceInfo: () => ipcRenderer.invoke("device:info"),
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    set: (patch) => ipcRenderer.invoke("settings:set", patch),
+  },
+  adb: {
+    test: (adbPath) => ipcRenderer.invoke("adb:test", adbPath),
+    detect: () => ipcRenderer.invoke("adb:detect"),
+  },
+  dialog: {
+    file: () => ipcRenderer.invoke("dialog:file"),
+  },
   scans: {
     list: () => ipcRenderer.invoke("scans:list"),
     get: (id) => ipcRenderer.invoke("scans:get", id),

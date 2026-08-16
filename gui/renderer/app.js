@@ -14,6 +14,7 @@
     device: { connected: false, serial: "", model: "" },
     scanController: null,
     detail: window.Views.detail,
+    review: null,
     toast: function (msg) {
       const t = document.createElement("div");
       t.className = "toast";
@@ -78,7 +79,7 @@
     const ctrl = app.scanController;
     if (!ctrl) return;
     if (msg.status === "running") ctrl.markRunning(msg.check);
-    else if (msg.status === "done") ctrl.markDone(msg.check, msg.passed);
+    else if (msg.status === "done") ctrl.markDone(msg.check, msg.outcome);
     else if (msg.status === "complete") ctrl.onComplete(msg);
   });
   window.pehredar.onScanExit((d) => {
@@ -95,6 +96,12 @@
   window.addEventListener("load", () => {
     window.wireNavIcons();
     window.Views.detail.bind();
+    window.Views.review.bind();
+    app.review = window.Views.review;
+    window.pehredar.settings.get().then((s) => {
+      if (s && s.accent) document.body.setAttribute("data-accent", s.accent);
+      if (window.SimpleLabels) window.SimpleLabels.enabled = Boolean(s && s.simple);
+    });
     updateDeviceChip();
     router.show("dashboard");
     window.pehredar.startDevicePolling();

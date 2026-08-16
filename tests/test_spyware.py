@@ -20,7 +20,7 @@ class FakeADB:
     def __init__(self):
         self.responses = {}
 
-    def run_command(self, command):
+    def run_command(self, command, timeout=30):
         for key, value in self.responses.items():
             if command.startswith(key):
                 return value.stdout, value.stderr, value.returncode
@@ -48,6 +48,93 @@ def test_check_hidden_apps_flags_no_launcher(adb):
     result = check_hidden_apps(adb)
     assert not result.passed
     assert "com.sneaky.app" in result.evidence
+    assert result.packages == ["com.sneaky.app"]
+
+
+def test_check_hidden_apps_real_query_format(adb):
+    # regression (real device): modern `cmd package query-activities` emits
+    # "package:" lines followed by "  activity:pkg/.Activity" lines. Only the
+    # activity lines resolve to real packages; the old parser swallowed the
+    # prefixed tokens and flagged every app as hidden.
+    adb.responses["cmd package query-activities"] = fake_result(
+        "package:com.android.chrome\n"
+        "  activity:com.android.chrome/com.google.android.apps.chrome.Main\n"
+        "package:com.google.android.youtube\n"
+        "  activity:com.google.android.youtube/com.google.android.apps.youtube.app.phone.YoutubeActivity\n"
+    )
+    adb.responses["pm list packages -3"] = fake_result(
+        "package:com.android.chrome\n"
+        "package:com.google.android.youtube\n"
+        "package:com.sneaky.app\n"
+    )
+    result = check_hidden_apps(adb)
+    assert not result.passed
+    assert "com.sneaky.app" in result.evidence
+    assert "com.android.chrome" not in result.evidence
+    assert result.packages == ["com.sneaky.app"]
+
+
+def test_check_hidden_apps_allowlist_excludes_well_known(adb):
+    # regression (real device): when the launcher query returns nothing usable
+    # on an OEM launcher, well-known apps with real launcher icons (Google
+    # Authenticator, Assistant, Facebook, Play Console, YouTube) were flagged.
+    # The allowlist excludes them regardless of the query result.
+    adb.responses["cmd package query-activities"] = fake_result("")
+    adb.responses["pm list packages -3"] = fake_result(
+        "package:com.google.android.apps.authenticator2\n"
+        "package:com.google.android.googlequicksearchbox\n"
+        "package:com.facebook.katana\n"
+        "package:com.google.android.apps.playconsole\n"
+        "package:com.google.android.youtube\n"
+        "package:com.sneaky.spy\n"
+    )
+    result = check_hidden_apps(adb)
+    assert not result.passed
+    assert "com.sneaky.spy" in result.evidence
+    for known in (
+        "com.google.android.apps.authenticator2",
+        "com.google.android.googlequicksearchbox",
+        "com.facebook.katana",
+        "com.google.android.apps.playconsole",
+        "com.google.android.youtube",
+    ):
+        assert known not in result.evidence
+    assert result.packages == ["com.sneaky.spy"]
+
+
+def test_check_hidden_apps_verbose_dump_format(adb):
+    # regression (real device, Android 14 BBK/Vivo): `cmd package
+    # query-activities` emits a dumpsys-style dump. The activity package is in
+    # `packageName=` fields, not `pkg/Activity` or `package:`/`activity:`
+    # lines. The old parser read nothing from this format and flagged every
+    # third-party app (incl. Truecaller / ChatGPT) as hidden.
+    adb.responses["cmd package query-activities"] = fake_result(
+        "55 activities found:\n"
+        "  Activity #0:\n"
+        "    ActivityInfo:\n"
+        "      name=com.truecaller.ui.TruecallerInit\n"
+        "      packageName=com.truecaller\n"
+        "      labelRes=0x7f100053 icon=0x0\n"
+        "      sourceDir=/data/app/~~abc==/com.truecaller-bX==/base.apk\n"
+        "  Activity #1:\n"
+        "    ActivityInfo:\n"
+        "      name=com.openai.chatgpt/.MainActivity\n"
+        "      packageName=com.openai.chatgpt\n"
+        "    ApplicationInfo:\n"
+        "      packageName=com.openai.chatgpt\n"
+    )
+    adb.responses["pm list packages -3"] = fake_result(
+        "package:com.truecaller\n"
+        "package:com.openai.chatgpt\n"
+        "package:com.sneaky.app\n"
+    )
+    result = check_hidden_apps(adb)
+    assert not result.passed
+    assert "com.sneaky.app" in result.evidence
+    assert "com.truecaller" not in result.evidence
+    assert "com.openai.chatgpt" not in result.evidence
+    assert "sourceDir" not in result.evidence
+    assert result.packages == ["com.sneaky.app"]
 
 
 def test_check_hidden_apps_clean(adb):
@@ -145,6 +232,7 @@ def test_check_sensitive_permissions_flags_hidden(adb):
     result = check_sensitive_permissions(adb)
     assert not result.passed
     assert "com.sneaky.app" in result.evidence
+    assert result.packages == ["com.sneaky.app"]
 
 
 def test_check_sensitive_permissions_clean(adb):

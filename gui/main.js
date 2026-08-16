@@ -1,15 +1,100 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { execFile, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
 const POLL_INTERVAL_MS = 2000;
 
+const CHECK_CATEGORIES = {
+  root: [
+    "check_su_binary",
+    "check_root_packages",
+    "check_build_tags",
+    "check_debuggable_secure",
+    "check_writable_system",
+    "check_busybox",
+    "check_magisk_hide",
+  ],
+  spyware: [
+    "check_hidden_apps",
+    "check_accessibility_services",
+    "check_device_admin",
+    "check_sensitive_permissions",
+  ],
+};
+
+const DEFAULT_SETTINGS = {
+  adbPath: "",
+  accent: "cyan",
+  simple: false,
+  checks: {
+    categories: { root: true, spyware: true },
+    enabled: {},
+  },
+};
+
 let mainWindow = null;
 let devicePollTimer = null;
 let currentDeviceSerial = null;
 let currentDeviceModel = null;
 let scanProcess = null;
+
+// ---- settings persistence ----
+function settingsFile() {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+function getSettings() {
+  const base = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  try {
+    const saved = JSON.parse(fs.readFileSync(settingsFile(), "utf8"));
+    if (saved.adbPath !== undefined) base.adbPath = saved.adbPath;
+    if (saved.accent !== undefined) base.accent = saved.accent;
+    if (saved.simple !== undefined) base.simple = saved.simple;
+    if (saved.checks) {
+      if (saved.checks.categories) base.checks.categories = Object.assign({}, base.checks.categories, saved.checks.categories);
+      if (saved.checks.enabled) base.checks.enabled = Object.assign({}, base.checks.enabled, saved.checks.enabled);
+    }
+  } catch {
+    /* no settings yet */
+  }
+  return base;
+}
+
+function saveSettings(patch) {
+  const current = getSettings();
+  const merged = Object.assign({}, current, patch);
+  if (patch.checks) {
+    merged.checks = {
+      categories: Object.assign({}, current.checks.categories, patch.checks.categories || {}),
+      enabled: Object.assign({}, current.checks.enabled, patch.checks.enabled || {}),
+    };
+  }
+  try {
+    fs.writeFileSync(settingsFile(), JSON.stringify(merged, null, 2));
+  } catch (e) {
+    /* ignore write errors */
+  }
+  return merged;
+}
+
+function adbExecutable() {
+  const s = getSettings();
+  return s.adbPath && s.adbPath.trim() ? s.adbPath.trim() : "adb";
+}
+
+function skippedChecks() {
+  const s = getSettings();
+  const skip = [];
+  for (const cat of Object.keys(CHECK_CATEGORIES)) {
+    const categoryOn = s.checks.categories[cat] !== false;
+    for (const slug of CHECK_CATEGORIES[cat]) {
+      const individualOn = s.checks.enabled[slug] !== false;
+      if (!categoryOn || !individualOn) skip.push(slug);
+    }
+  }
+  return skip;
+}
 
 function scansDir() {
   return path.join(app.getPath("userData"), "scans");
@@ -74,14 +159,14 @@ function sendDeviceUpdate(payload) {
 }
 
 function queryDeviceInfo(serial) {
-  execFile("adb", ["-s", serial, "shell", "getprop", "ro.product.model"], { timeout: 5000 }, (err, stdout) => {
+  execFile(adbExecutable(), ["-s", serial, "shell", "getprop", "ro.product.model"], { timeout: 5000 }, (err, stdout) => {
     currentDeviceModel = err ? "" : String(stdout).trim();
     sendDeviceUpdate({ connected: true, serial, model: currentDeviceModel });
   });
 }
 
 function pollDevice() {
-  execFile("adb", ["devices"], { timeout: 4000 }, (err, stdout) => {
+  execFile(adbExecutable(), ["devices"], { timeout: 4000 }, (err, stdout) => {
     if (err) {
       currentDeviceSerial = null;
       sendDeviceUpdate({ connected: false, error: String(err.message) });
@@ -142,6 +227,13 @@ function startScan() {
     "--json-stream",
     "--quiet",
   ];
+  const settings = getSettings();
+  if (settings.adbPath && settings.adbPath.trim()) {
+    args.push("--adb-path", settings.adbPath.trim());
+  }
+  for (const slug of skippedChecks()) {
+    args.push("--skip-check", slug);
+  }
 
   const env = Object.assign({}, process.env);
   if (app.isPackaged) {
@@ -402,7 +494,7 @@ ipcMain.handle("device:info", async () => {
   const serial = currentDeviceSerial;
   const model = currentDeviceModel;
   const android = await new Promise((resolve) => {
-    execFile("adb", ["-s", serial, "shell", "getprop", "ro.build.version.release"], { timeout: 5000 }, (err, out) =>
+    execFile(adbExecutable(), ["-s", serial, "shell", "getprop", "ro.build.version.release"], { timeout: 5000 }, (err, out) =>
       resolve(err ? "" : String(out).trim())
     );
   });
@@ -418,6 +510,166 @@ ipcMain.handle("scans:clear", () => {
 ipcMain.handle("scans:dir", () => scansDir());
 ipcMain.handle("scans:export", (_e, id) => exportScan(id));
 ipcMain.handle("shell:open", (_e, p) => (p ? shell.openPath(p) : null));
+
+// ---- settings ----
+ipcMain.handle("settings:get", () => getSettings());
+ipcMain.handle("settings:set", (_e, patch) => saveSettings(patch || {}));
+
+// ---- adb configuration ----
+function runAdbDevices(adbPath) {
+  return new Promise((resolve) => {
+    const exe = adbPath && adbPath.trim() ? adbPath.trim() : "adb";
+    execFile(exe, ["devices"], { timeout: 6000 }, (err, stdout, stderr) => {
+      if (err) {
+        if (err.code === "ENOENT") {
+          resolve({ ok: false, error: `adb not found at '${exe}'`, stdout: "", stderr: "" });
+        } else {
+          resolve({ ok: false, error: String(err.message), stdout: String(stdout || ""), stderr: String(stderr || "") });
+        }
+        return;
+      }
+      const text = String(stdout || "") + (String(stderr || "").trim() ? "\n[stderr] " + String(stderr) : "");
+      const hasDevice = /(^|\n)([\w\-.:]+)\tdevice(\r|$|\n)/.test(String(stdout || ""));
+      resolve({ ok: true, error: "", stdout: text.trim(), stderr: String(stderr || ""), hasDevice });
+    });
+  });
+}
+
+ipcMain.handle("adb:test", async (_e, adbPath) => {
+  return runAdbDevices(adbPath);
+});
+
+ipcMain.handle("adb:detect", async () => {
+  return new Promise((resolve) => {
+    const exe = process.platform === "win32" ? "where" : "which";
+    execFile(exe, ["adb"], { timeout: 4000 }, (err, stdout) => {
+      if (err || !String(stdout).trim()) resolve({ found: false, path: "" });
+      else resolve({ found: true, path: String(stdout).trim().split(/\r?\n/)[0] });
+    });
+  });
+});
+
+ipcMain.handle("dialog:file", async () => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: "Select adb executable",
+    properties: ["openFile"],
+  });
+  if (res.canceled || !res.filePaths.length) return null;
+  return res.filePaths[0];
+});
+
+// ---- app remediation (review & remove) ----
+function parseSystemPackages(stdout) {
+  const set = new Set();
+  for (const line of String(stdout || "").split(/\r?\n/)) {
+    const t = line.trim();
+    if (t.startsWith("package:")) set.add(t.slice("package:".length));
+  }
+  return set;
+}
+
+function systemPackages(serial) {
+  return new Promise((resolve) => {
+    execFile(adbExecutable(), ["-s", serial, "shell", "pm", "list", "packages", "-s"], { timeout: 8000 }, (err, stdout) => {
+      if (err) return resolve(new Set());
+      resolve(parseSystemPackages(stdout));
+    });
+  });
+}
+
+function getAppLabel(serial, pkg) {
+  return new Promise((resolve) => {
+    execFile(adbExecutable(), ["-s", serial, "shell", "dumpsys", "package", pkg], { timeout: 6000 }, (err, stdout) => {
+      if (err) return resolve(null);
+      const text = String(stdout);
+      // best-effort: resolved labels in the package dump (activity resolver /
+      // applicationInfo sections). Falls back to the package ID when absent.
+      const m = text.match(/Label=(.+?)(?:\r?\n|$)/);
+      if (m && m[1].trim() && m[1].trim() !== pkg) return resolve(m[1].trim());
+      resolve(null);
+    });
+  });
+}
+
+function runUninstall(serial, pkg) {
+  return new Promise((resolve) => {
+    execFile(adbExecutable(), ["-s", serial, "uninstall", pkg], { timeout: 20000 }, (err, stdout, stderr) => {
+      const out = String(stdout || "").trim();
+      if (!err && /^success$/i.test(out)) return resolve({ ok: true, reason: "" });
+      const fm = out.match(/Failure\s*(?:\[([^\]]*)\])?/i);
+      const reason = fm && fm[1] ? fm[1] : String(stderr || "").trim() || out || (err && err.message) || "unknown error";
+      resolve({ ok: false, reason });
+    });
+  });
+}
+
+ipcMain.handle("app:system-packages", async () => {
+  if (!currentDeviceSerial) return [];
+  const set = await systemPackages(currentDeviceSerial);
+  return Array.from(set);
+});
+
+ipcMain.handle("app:labels", async (_e, pkgs) => {
+  if (!currentDeviceSerial) return {};
+  const serial = currentDeviceSerial;
+  const arr = (Array.isArray(pkgs) ? pkgs : []).filter((p) => typeof p === "string" && p);
+  const out = {};
+  for (const pkg of arr) {
+    out[pkg] = await getAppLabel(serial, pkg);
+  }
+  return out;
+});
+
+ipcMain.handle("app:uninstall", async (_e, pkgs) => {
+  if (!currentDeviceSerial) return { error: "No device connected" };
+  const serial = currentDeviceSerial;
+  const arr = (Array.isArray(pkgs) ? pkgs : []).filter((p) => typeof p === "string" && p);
+  if (!arr.length) return { error: "No packages selected" };
+
+  // final native confirmation per batch action
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: "Confirm uninstall",
+    message: `You are about to uninstall ${arr.length} app${arr.length === 1 ? "" : "s"}. This cannot be undone. Continue?`,
+    detail: arr.join(", "),
+    buttons: ["Cancel", "Uninstall"],
+    defaultId: 0,
+    cancelId: 0,
+  });
+  if (response !== 1) return { canceled: true };
+
+  // safety: re-cross-check system apps before touching anything
+  const system = await systemPackages(serial);
+  const results = [];
+  let removed = 0;
+  let failed = 0;
+  for (const pkg of arr) {
+    if (system.has(pkg)) {
+      const r = { pkg, ok: false, reason: "System app — cannot remove" };
+      results.push(r);
+      failed++;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("uninstall-progress", { pkg, state: "failed", reason: r.reason });
+      }
+      continue;
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("uninstall-progress", { pkg, state: "removing" });
+    }
+    const res = await runUninstall(serial, pkg);
+    if (res.ok) {
+      removed++;
+    } else {
+      failed++;
+    }
+    results.push({ pkg, ok: res.ok, reason: res.reason });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("uninstall-progress", { pkg, state: res.ok ? "removed" : "failed", reason: res.reason });
+    }
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  return { removed, failed, canceled: false, results };
+});
 
 app.setAppUserModelId("com.pehredar.desktop");
 

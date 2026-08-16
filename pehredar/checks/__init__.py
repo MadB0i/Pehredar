@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from ..adb import ADBConnection
+from ..adb import ADBConnection, ADBError
 
 
 @dataclass
@@ -11,6 +11,15 @@ class CheckResult:
     passed: bool
     evidence: str
     severity: str
+    # outcome status: "pass" | "fail" | "inconclusive"
+    # "auto" derives the status from `passed` for backward compat.
+    status: str = "auto"
+    # structured list of flagged package IDs (used by the GUI remediation flow)
+    packages: list = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.status == "auto":
+            self.status = "pass" if self.passed else "fail"
 
 
 SU_PATHS = [
@@ -198,21 +207,69 @@ def check_busybox(adb: ADBConnection) -> CheckResult:
 
 
 def check_magisk_hide(adb: ADBConnection) -> CheckResult:
-    stdout, _, code = adb.run_command("ls -la /proc/self/ns/mnt 2>/dev/null")
-    if code == 0 and "mnt" in stdout:
-        pass
+    """Detect Magisk/Zygisk mount-hiding indicators.
 
-    stdout, _, code = adb.run_command("find /proc -name 'mounts' -exec grep -l magisk {} \\; 2>/dev/null | head -5")
-    magisk_mounts = stdout.strip().split("\n") if stdout.strip() else []
-
-    stdout, _, code = adb.run_command("ls /dev/magisk* /dev/.magisk* /sbin/.magisk* 2>/dev/null")
-    magisk_devs = stdout.strip().split("\n") if stdout.strip() else []
+    A recursive /proc scan (find ... -exec grep) is far too slow and is
+    frequently blocked without root on OEM ROMs, which used to surface a
+    timeout as a HIGH-severity FAIL. This version only probes a fixed set
+    of quick commands with a short timeout, and reports INCONCLUSIVE (with
+    the raw error as evidence) when a probe cannot produce a definitive
+    answer.
+    """
+    probe_timeout = 2.5
+    indicator_paths = [
+        "/data/adb/magisk",
+        "/data/adb/magisk.db",
+        "/data/adb/modules",
+        "/data/adb/zygisk",
+        "/data/adb/stock_boot",
+        "/sbin/.magisk",
+        "/dev/magisk",
+        "/dev/.magisk",
+        "/cache/magisk",
+    ]
 
     evidence_parts = []
-    if magisk_mounts:
-        evidence_parts.append(f"Magisk mount namespace references: {', '.join(magisk_mounts[:3])}")
-    if magisk_devs:
-        evidence_parts.append(f"Magisk device nodes: {', '.join(magisk_devs[:3])}")
+
+    def inconclusive(detail: str) -> CheckResult:
+        return CheckResult(
+            name="Magisk Hide Indicators",
+            passed=False,
+            evidence=f"INCONCLUSIVE — {detail}",
+            severity="info",
+            status="inconclusive",
+        )
+
+    # 1) mount table: fast and read-only; grep returns 1 for "no match"
+    try:
+        stdout, stderr, code = adb.run_command("mount | grep -iE 'magisk|zygisk'", timeout=probe_timeout)
+        if code == 2 or (code != 0 and code != 1 and not stdout.strip()):
+            # grep errored (2) or the shell failed in an unexpected way -> no
+            # definitive answer, never a FAIL.
+            if code == 2:
+                return inconclusive(f"mount scan error: {stderr.strip() or 'grep error'}")
+            return inconclusive(f"mount scan failed with code {code}: {stderr.strip() or 'unknown error'}")
+        if code == 0 and stdout.strip():
+            evidence_parts.append(f"Magisk/Zygisk mount references: {stdout.strip()[:200]}")
+    except ADBError as e:
+        return inconclusive(str(e))
+
+    # 2) fixed known indicator paths
+    for probe in indicator_paths:
+        try:
+            stdout, _, code = adb.run_command(f"ls -ld {probe} 2>/dev/null", timeout=probe_timeout)
+            if code == 0 and stdout.strip():
+                evidence_parts.append(f"Indicator path present: {stdout.strip()}")
+        except ADBError as e:
+            return inconclusive(f"path probe failed ({probe}): {e}")
+
+    # 3) magisk binary on PATH
+    try:
+        stdout, _, code = adb.run_command("command -v magisk 2>/dev/null", timeout=probe_timeout)
+        if code == 0 and stdout.strip():
+            evidence_parts.append(f"magisk binary: {stdout.strip()}")
+    except ADBError as e:
+        return inconclusive(f"binary probe failed: {e}")
 
     if evidence_parts:
         return CheckResult(
@@ -221,11 +278,10 @@ def check_magisk_hide(adb: ADBConnection) -> CheckResult:
             evidence="; ".join(evidence_parts),
             severity="medium",
         )
-
     return CheckResult(
         name="Magisk Hide Indicators",
         passed=True,
-        evidence="No obvious Magisk hide indicators detected",
+        evidence="No Magisk/Zygisk mount or path indicators detected",
         severity="info",
     )
 
@@ -245,10 +301,13 @@ from . import spyware
 ALL_CHECKS.extend(spyware.SPYWARE_CHECKS)
 
 
-def run_all_checks(adb: ADBConnection, on_check=None) -> list[CheckResult]:
+def run_all_checks(adb: ADBConnection, on_check=None, skip: set[str] | None = None) -> list[CheckResult]:
+    skip = skip or set()
     results = []
     for check_func in ALL_CHECKS:
         slug = check_func.__name__
+        if slug in skip:
+            continue
         if on_check is not None:
             on_check("running", slug, None)
         try:

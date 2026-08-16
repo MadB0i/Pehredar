@@ -55,6 +55,32 @@ def list_third_party_packages(adb: ADBConnection) -> set[str]:
 
 
 def list_launchable_packages(adb: ADBConnection) -> tuple[set[str], bool]:
+    """Enumerate packages that expose a MAIN/LAUNCHER activity.
+
+    Three output formats are handled::
+
+        # modern `cmd package query-activities` on Android 13+ emits a
+        # dumpsys-style dump with a packageName= field per activity block
+        55 activities found:
+          Activity #0:
+            ActivityInfo:
+              name=com.truecaller.ui.TruecallerInit
+              packageName=com.truecaller
+              ...
+
+        # some Android versions emit this compact form
+        package:com.example.app
+          activity:com.example.app/.MainActivity
+
+        # older `pm query-activities` emits a plain ``pkg/Activity`` line
+        com.example.app/.MainActivity
+
+    The previous implementation split every line on ``/`` and ingested the
+    bare ``package:`` / ``activity:``-prefixed tokens (or dump keys like
+    ``sourceDir=``) as "launchable" names, so no installed package ever
+    matched and every third-party app looked hidden — the root cause of the
+    Google Authenticator / Facebook / YouTube false positives.
+    """
     launchable = set()
     ok = False
     commands = [
@@ -70,12 +96,56 @@ def list_launchable_packages(adb: ADBConnection) -> tuple[set[str], bool]:
             line = line.strip()
             if not line or line.startswith("No "):
                 continue
-            pkg = line.split("/")[0].strip()
-            if pkg:
+            m = re.match(r"packageName=(\S+)", line)
+            if m:
+                launchable.add(m.group(1))
+                continue
+            if "/" not in line:
+                continue
+            pkg = line.split("/", 1)[0].strip()
+            for prefix in ("activity:", "package:"):
+                if pkg.startswith(prefix):
+                    pkg = pkg[len(prefix):]
+                    break
+            # a real package id always contains a dot; this drops dump keys
+            # like `sourceDir=` / `name=` that merely contain a slash
+            if "." in pkg:
                 launchable.add(pkg)
         if launchable:
             break
     return launchable, ok
+
+
+# Well-known / trusted packages excluded from the "no launcher icon" flag
+# regardless of the activity-query result. On many OEM launchers, work
+# profiles and unlaunchable-but-installed apps, these apps legitimately do
+# not surface in MAIN/LAUNCHER activity queries — and a false positive on a
+# mainstream app (Google Authenticator, Facebook, Assistant…) is far worse
+# than missing a low-value detection.
+ALLOWLIST_PREFIXES = (
+    "com.google.",
+    "com.facebook.",
+    "com.whatsapp",
+    "com.instagram.",
+    "com.android.vending",
+    "com.android.chrome",
+    "com.android.settings",
+    "com.android.phone",
+    "com.microsoft.",
+    "com.samsung.android.",
+    "com.xiaomi.",
+    "com.miui.",
+    "com.oppo.",
+    "com.vivo.",
+    "com.oneplus.",
+    "com.realme.",
+    "org.telegram.",
+    "com.spotify.",
+)
+
+
+def is_allowlisted(pkg: str) -> bool:
+    return any(pkg.startswith(prefix) for prefix in ALLOWLIST_PREFIXES)
 
 
 def check_hidden_apps(adb: ADBConnection) -> CheckResult:
@@ -88,13 +158,14 @@ def check_hidden_apps(adb: ADBConnection) -> CheckResult:
             severity="info",
         )
     third_party = list_third_party_packages(adb)
-    hidden = sorted(third_party - launchable)
+    hidden = sorted(p for p in (third_party - launchable) if not is_allowlisted(p))
     if hidden:
         return CheckResult(
             name="Hidden Apps (No Icon)",
             passed=False,
             evidence=f"Third-party apps with no launcher icon: {', '.join(hidden[:10])}",
             severity="medium",
+            packages=hidden,
         )
     return CheckResult(
         name="Hidden Apps (No Icon)",
@@ -126,6 +197,7 @@ def check_accessibility_services(adb: ADBConnection) -> CheckResult:
             passed=False,
             evidence=f"Suspicious accessibility services: {', '.join(suspicious[:10])}",
             severity="high",
+            packages=[s.split("/")[0].strip() for s in suspicious],
         )
     return CheckResult(
         name="Accessibility Services",
@@ -173,6 +245,7 @@ def check_device_admin(adb: ADBConnection) -> CheckResult:
             passed=False,
             evidence=f"Apps with device admin/owner privileges: {', '.join(flagged[:10])}",
             severity="high",
+            packages=flagged,
         )
     if owners:
         return CheckResult(
@@ -237,7 +310,7 @@ def check_sensitive_permissions(adb: ADBConnection) -> CheckResult:
             evidence="Could not read package permission dump",
             severity="info",
         )
-    suspects = _find_sensitive_hidden_packages(stdout, launchable)
+    suspects = [p for p in _find_sensitive_hidden_packages(stdout, launchable) if not is_allowlisted(p)]
     if suspects:
         return CheckResult(
             name="Sensitive Permissions (No Icon)",
@@ -247,6 +320,7 @@ def check_sensitive_permissions(adb: ADBConnection) -> CheckResult:
                 f"{', '.join(suspects[:10])}"
             ),
             severity="high",
+            packages=suspects,
         )
     return CheckResult(
         name="Sensitive Permissions (No Icon)",

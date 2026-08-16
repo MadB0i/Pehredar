@@ -62,12 +62,16 @@
   function markRunning(slug) {
     if (graph) graph.markRunning(slug);
     const status = el().querySelector("#scan-status");
-    status.textContent = "running · " + slug;
+    const label =
+      window.SimpleLabels && window.SimpleLabels.enabled && window.SimpleLabels.simpleName(slug)
+        ? window.SimpleLabels.simpleName(slug)
+        : slug;
+    status.textContent = "running · " + label;
     status.classList.add("running");
   }
 
-  function markDone(slug, passed) {
-    if (graph) graph.markDone(slug, passed);
+  function markDone(slug, outcome) {
+    if (graph) graph.markDone(slug, outcome);
   }
 
   function setStatus(text, running) {
@@ -115,6 +119,7 @@
     stats.textContent =
       "PASS " + (msg.summary ? msg.summary.passed : "?") +
       " · FAIL " + (msg.summary ? msg.summary.failed : "?") +
+      " · INCONCLUSIVE " + (msg.summary ? msg.summary.inconclusive : "?") +
       " · SCORE " + (msg.risk_score ?? 0);
     el().querySelector("#risk-panel").classList.remove("hidden");
 

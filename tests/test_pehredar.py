@@ -32,7 +32,7 @@ class FakeADB:
         self.props = {}
         self.responses = {}
 
-    def run_command(self, command):
+    def run_command(self, command, timeout=30):
         for key, value in self.responses.items():
             if command.startswith(key):
                 return value.stdout, value.stderr, value.returncode
@@ -159,14 +159,58 @@ def test_check_busybox_clean(adb):
 
 
 def test_check_magisk_hide_found(adb):
-    adb.responses["ls /dev/magisk* /dev/.magisk* /sbin/.magisk*"] = fake_result("/sbin/.magisk/mirror")
+    adb.responses["ls -ld /data/adb/magisk"] = fake_result("-rwxr-xr-x root root /data/adb/magisk")
     result = check_magisk_hide(adb)
     assert not result.passed
+    assert result.status == "fail"
+    assert result.severity == "medium"
 
 
 def test_check_magisk_hide_clean(adb):
     result = check_magisk_hide(adb)
     assert result.passed
+    assert result.status == "pass"
+
+
+class TimeoutADB:
+    def __init__(self, trigger):
+        self.trigger = trigger
+
+    def run_command(self, command, timeout=30):
+        if command.startswith(self.trigger):
+            raise ADBError(f"ADB command timed out after {timeout:.1f}s: {command}")
+        return "", "", 0
+
+    def getprop(self, prop):
+        return ""
+
+
+def test_check_magisk_hide_timeout_is_inconclusive_not_fail():
+    # regression (real device): the old recursive /proc scan timed out and was
+    # surfaced as a HIGH-severity FAIL. A blocked probe must be INCONCLUSIVE.
+    adb = TimeoutADB("mount | grep")
+    result = check_magisk_hide(adb)
+    assert result.status == "inconclusive"
+    assert result.severity == "info"
+    assert result.severity != "high"
+    assert "INCONCLUSIVE" in result.evidence
+
+
+def test_check_magisk_hide_timeout_never_high_severity(adb):
+    adb = TimeoutADB("command -v magisk")
+    result = check_magisk_hide(adb)
+    assert result.status == "inconclusive"
+    assert result.severity == "info"
+
+
+def test_inconclusive_does_not_inflate_risk():
+    results = [
+        CheckResult("a", passed=False, evidence="", severity="high", status="inconclusive"),
+        CheckResult("b", passed=True, evidence="", severity="info"),
+    ]
+    level, score = calculate_risk_score(results)
+    assert level == "Low"
+    assert score == 0
 
 
 def test_run_all_checks_returns_all(adb):
@@ -181,6 +225,33 @@ def test_run_all_checks_catches_errors(adb):
     adb.responses["pm list packages"] = fake_result(returncode=1)
     results = run_all_checks(adb)
     assert len(results) == len(ALL_CHECKS)
+
+
+def test_run_all_checks_skip(adb):
+    results = run_all_checks(adb, skip={"check_su_binary", "check_hidden_apps"})
+    # verify the returned results exclude the skipped checks by name
+    assert not any(r.name == "SU Binary" for r in results)
+    assert not any(r.name == "Hidden Apps (No Icon)" for r in results)
+    assert len(results) == len(ALL_CHECKS) - 2
+
+
+def test_run_all_checks_on_check_callback(adb):
+    seen = []
+    run_all_checks(adb, on_check=lambda status, slug, result: seen.append((status, slug)))
+    assert len(seen) == len(ALL_CHECKS) * 2
+
+
+def test_run_all_checks_skip_also_skips_callback(adb):
+    seen = []
+    run_all_checks(adb, on_check=lambda status, slug, result: seen.append((status, slug)), skip={"check_su_binary"})
+    slugs = {slug for status, slug in seen}
+    assert "check_su_binary" not in slugs
+    assert "check_root_packages" in slugs
+
+
+def test_adb_connection_custom_path():
+    conn = ADBConnection(adb_path="/custom/adb")
+    assert conn.adb_path == "/custom/adb"
 
 
 def test_risk_score_low_when_all_clean(adb):
@@ -211,3 +282,16 @@ def test_get_summary_counts():
     assert summary["failed"] == 2
     assert summary["high_severity"] == 1
     assert summary["medium_severity"] == 1
+
+
+def test_get_summary_counts_inconclusive():
+    results = [
+        CheckResult("a", passed=True, evidence="", severity="info"),
+        CheckResult("b", passed=False, evidence="", severity="high"),
+        CheckResult("c", passed=False, evidence="", severity="info", status="inconclusive"),
+    ]
+    summary = get_summary(results)
+    assert summary["passed"] == 1
+    assert summary["failed"] == 1
+    assert summary["inconclusive"] == 1
+    assert summary["total_checks"] == 3

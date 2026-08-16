@@ -89,9 +89,24 @@
     </div>
   </div>
 
+  <!-- Review & remove overlay -->
+  <div id="review-overlay" class="overlay hidden">
+    <div class="overlay-backdrop" id="review-backdrop"></div>
+    <div class="overlay-card">
+      <div class="overlay-head">
+        <span class="overlay-title" id="review-title">REVIEW &amp; REMOVE</span>
+        <div class="overlay-actions">
+          <button id="review-close" class="btn btn-ghost">Close</button>
+        </div>
+      </div>
+      <div id="review-body" class="review-body"></div>
+    </div>
+  </div>
+
   <script src="vendor/chart.umd.js"></script>
   <script src="icons.js"></script>
   <script src="components.js"></script>
+  <script src="simple-labels.js"></script>
   <script src="graph.js"></script>
   <script src="views/dashboard.js"></script>
   <script src="views/scan.js"></script>
@@ -99,6 +114,7 @@
   <script src="views/detail.js"></script>
   <script src="views/settings.js"></script>
   <script src="views/about.js"></script>
+  <script src="views/review.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
