@@ -296,9 +296,10 @@ ALL_CHECKS = [
     check_magisk_hide,
 ]
 
-from . import spyware
+from . import spyware, stalkerware_db
 
 ALL_CHECKS.extend(spyware.SPYWARE_CHECKS)
+ALL_CHECKS.append(stalkerware_db.check_known_stalkerware)
 
 
 def run_all_checks(adb: ADBConnection, on_check=None, skip: set[str] | None = None) -> list[CheckResult]:

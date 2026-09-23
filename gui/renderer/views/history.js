@@ -8,7 +8,7 @@
       '<div class="history-head">' +
       '<h2 class="view-title">HISTORY</h2>' +
       "</div>" +
-      '<div class="history-list" id="history-list"><div class="empty-state dim">Loading…</div></div>';
+      '<div class="history-list" id="history-list">' + skeletonRows() + "</div>";
 
     el.querySelector("#history-list").addEventListener("click", (e) => {
       const row = e.target.closest(".history-row");
@@ -17,10 +17,28 @@
     mounted = true;
   }
 
+  function skeletonRows() {
+    let html = "";
+    for (let i = 0; i < 3; i++) {
+      html +=
+        '<div class="history-skel" aria-hidden="true">' +
+        '<span class="skeleton-bar" style="flex:0 0 150px;height:12px"></span>' +
+        '<span class="skeleton-bar" style="flex:1;height:12px"></span>' +
+        '<span class="skeleton-bar" style="flex:1;height:11px"></span>' +
+        '<span class="skeleton-bar" style="flex:0 0 52px;height:20px;border-radius:10px"></span>' +
+        '<span class="skeleton-bar" style="flex:0 0 40px;height:12px"></span>' +
+        "</div>";
+    }
+    return html;
+  }
+
   async function show() {
     const el = document.getElementById("view-history");
     if (!mounted) mount(el);
     const listEl = el.querySelector("#history-list");
+    // Shape-matched skeleton while the IPC round-trip resolves — no blank
+    // flash, no generic spinner.
+    listEl.innerHTML = skeletonRows();
     const list = await window.pehredar.scans.list();
     if (!list.length) {
       listEl.innerHTML = '<div class="empty-state dim">No scans recorded yet. Run a scan to see history here.</div>';

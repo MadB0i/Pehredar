@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Packaged launch crash**: `scripts/bundled-paths.js` was missing from `app.asar` (`build.files` only listed `main.js`/`preload.js`/`assets`/`renderer`), so every production launch died with "Cannot find module './scripts/bundled-paths'". Now explicitly packaged, with a `tests/test_packaging.py` guard that fails if any runtime `require()` in `main.js` is not covered by `build.files`.
+
+### Added
+- **Purposeful motion design** (`gui/renderer/motion-tokens.css`): duration/easing tokens (120/240/360ms, ease-out entrances, ease-in exits), event-driven 12-row scan checklist (pending → running → pass/fail, skipped aware, desync-proof), risk reveal (panel rise, badge pop, 350ms count-up, calm HIGH pulse), crossfade tab navigation, shape-matched skeleton placeholders, one-shot device-connect ping. Global `prefers-reduced-motion` guard collapses everything to instant state changes.
+- **Missing 12th check wired into GUI**: `check_known_stalkerware` added to `CHECK_CATALOG` and the scan graph (previously silently ignored by both).
+- Documented licensing basis for bundled adb/fastboot binaries (Apache 2.0, AOSP-sourced).
+- **Zero-dependency installer**: `scripts/build_core.py` (PyInstaller `--onefile` → `pehredar-core(.exe)` + `pehredar-agent-core(.exe)` in `gui/resources/bin/<win|linux>/`) and `scripts/fetch-adb.py` (official platform-tools zip → bundled `adb`/`fastboot` + Windows DLLs, never committed to git). `gui/main.js` uses the bundle when `app.isPackaged` and falls back to system `python`/`adb` in dev; missing binaries or unsupported platforms produce an explicit in-app error instead of a silent crash. `release.yml` now fetches, builds, and smoke-tests (`--version` + `adb version`) before packaging. `NOTICE-THIRD-PARTY.md` records the licensing basis (Apache 2.0, AOSP-sourced, scrcpy precedent).
+- **Release workflow**: `.github/workflows/release.yml` builds the Electron GUI on tag `v*` (Windows NSIS `.exe` + Linux AppImage) and publishes to GitHub Releases with `SHA256SUMS.txt`. GUI `package.json` gains stable `artifactName`s, `icon.ico` on Windows, and repo metadata. README gains a Download section.
+- **Scan diffing**: new `pehredar/diff.py` (`diff_reports` + `format_diff_text`) and `pehredar-diff` CLI (`old.json new.json [--format text|json] [-o diff.json]`, exit 1 on new findings). Answers "since last scan, what changed" — new/resolved failures, added/removed flagged packages, risk delta.
+- **Known-stalkerware check**: new `check_known_stalkerware` backed by manually curated `pehredar/checks/stalkerware_db.json` (Coalition Against Stalkerware + TinyCheck snapshot, exact + family-prefix matching). Wired into `ALL_CHECKS`, GUI spyware category, and Simple Mode labels.
+
 ## [1.0.0] - 2026-08-16
 
 ### Added

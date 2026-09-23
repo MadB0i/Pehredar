@@ -8,6 +8,7 @@ import click
 from .adb import ADBConnection, ADBError
 from .agent import FastbootConnection, build_root_plan, fingerprint_device, has_root, run_root_agent
 from .agent.lockrecovery import build_lock_recovery_plan, run_lock_recovery
+from .version import __version__
 
 
 def _emit(payload: dict, json_stream: bool) -> None:
@@ -55,6 +56,7 @@ def _do_lock_recovery(
 
 
 @click.command()
+@click.version_option(__version__, prog_name="pehredar-agent")
 @click.option("--serial", "-s", default=None, help="Target device serial (optional, uses first authorized device)")
 @click.option("--adb-path", default=None, help="Path to adb executable (default: 'adb' from PATH)")
 @click.option("--fastboot-path", default=None, help="Path to fastboot executable (default: 'fastboot' from PATH)")

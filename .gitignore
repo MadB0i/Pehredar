@@ -22,6 +22,16 @@ gui/out.log
 gui/err.log
 gui/smoke-result.json
 
+# Bundled third-party binaries (downloaded at release-build time, never committed)
+gui/resources/bin/win/*
+!gui/resources/bin/win/.gitkeep
+gui/resources/bin/linux/*
+!gui/resources/bin/linux/.gitkeep
+
+# PyInstaller work dirs (build/ and dist/ are already ignored above)
+spec/
+*.spec
+
 # Runtime artifacts (userData / scan storage / reports / exports)
 gui/userData/
 gui/reports/

@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-win:
+    name: Build Windows installer
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install GUI dependencies
+        run: npm ci
+
+      - name: Validate main-process JS
+        run: node --check main.js && node --check scripts/bundled-paths.js
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python core + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ../.
+          pip install pyinstaller
+        working-directory: gui
+
+      - name: Fetch adb binaries
+        run: python ../scripts/fetch-adb.py --platform win
+        working-directory: gui
+
+      - name: Build standalone core binaries
+        run: python ../scripts/build_core.py --platform win
+        working-directory: gui
+
+      - name: Smoke-test bundled core
+        shell: pwsh
+        working-directory: gui
+        run: |
+          & ./resources/bin/win/pehredar-core.exe --version
+          & ./resources/bin/win/pehredar-agent-core.exe --version
+          & ./resources/bin/win/adb.exe version
+
+      - name: Build Windows NSIS installer
+        run: npm run build:win -- --publish never
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path dist -Include *.exe,*.blockmap -Recurse | ForEach-Object { Get-FileHash $_.FullName -Algorithm SHA256 | Select-Object @{n='File';e={$_.Path}}, Hash } | Format-Table -AutoSize
+          Get-ChildItem dist/*.exe | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name } | Out-File -Encoding utf8 dist/SHA256SUMS.txt
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pehredar-win
+          path: |
+            gui/dist/*.exe
+            gui/dist/*.blockmap
+            gui/dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux AppImage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install GUI dependencies
+        run: npm ci
+
+      - name: Validate main-process JS
+        run: node --check main.js && node --check scripts/bundled-paths.js
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python core + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ../.
+          pip install pyinstaller
+        working-directory: gui
+
+      - name: Fetch adb binaries
+        run: python ../scripts/fetch-adb.py --platform linux
+        working-directory: gui
+
+      - name: Build standalone core binaries
+        run: python ../scripts/build_core.py --platform linux
+        working-directory: gui
+
+      - name: Smoke-test bundled core
+        run: |
+          ./resources/bin/linux/pehredar-core --version
+          ./resources/bin/linux/pehredar-agent-core --version
+          ./resources/bin/linux/adb version
+        working-directory: gui
+
+      - name: Build Linux AppImage
+        run: npm run build:linux -- --publish never
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.AppImage > SHA256SUMS.txt || true
+          cat SHA256SUMS.txt
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pehredar-linux
+          path: |
+            gui/dist/*.AppImage
+            gui/dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-win, build-linux]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pehredar-win
+          path: release-assets/win
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pehredar-linux
+          path: release-assets/linux
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/win/*.exe
+            release-assets/win/SHA256SUMS.txt
+            release-assets/linux/*.AppImage
+            release-assets/linux/SHA256SUMS.txt
+          body: |
+            ## Pehredar Desktop (zero-dependency)
+
+            **Non-technical users:** download the installer below — Python and
+            ADB are bundled inside, so just install, plug in your phone with
+            USB Debugging on, and click Scan.
+
+            - Windows: `Pehredar-*.exe` (NSIS installer, unsigned — accept the SmartScreen prompt, then verify `SHA256SUMS.txt`)
+            - Linux: `Pehredar-*.AppImage` (`chmod +x` then run)
+
+            > Note: installers are currently **unsigned**. Windows will show an "Unknown publisher" warning. Verify the SHA256 checksum before running.
+            > The installer embeds adb/fastboot built from the Apache-2.0-licensed AOSP sources — see NOTICE-THIRD-PARTY.md for the licensing basis.
+          draft: false
+          prerelease: false

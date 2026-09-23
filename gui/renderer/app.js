@@ -30,11 +30,20 @@
   });
 
   // ---- device chip (top bar, always visible) ----
+  let wasConnected = false;
   function updateDeviceChip() {
     const chip = document.getElementById("device-chip");
     const model = document.getElementById("device-model");
     const serial = document.getElementById("device-serial");
     chip.classList.toggle("online", app.device.connected);
+    // One-shot ring ping on the false→true transition only: it marks the
+    // moment of detection. The steady state stays a static green dot.
+    if (app.device.connected && !wasConnected) {
+      chip.classList.remove("connect-ping");
+      void chip.offsetWidth;
+      chip.classList.add("connect-ping");
+    }
+    wasConnected = app.device.connected;
     if (app.device.connected) {
       model.textContent = (app.device.model || "ANDROID DEVICE").toUpperCase();
       serial.textContent = app.device.serial;
@@ -98,6 +107,13 @@
     window.wireNavIcons();
     window.Views.detail.bind();
     window.Views.review.bind();
+    // The ping class is one-shot; drop it when its animation ends so a
+    // later reconnect can fire it again.
+    document.getElementById("device-chip").addEventListener("animationend", (e) => {
+      if (e.animationName === "connect-ping") {
+        document.getElementById("device-chip").classList.remove("connect-ping");
+      }
+    });
     app.review = window.Views.review;
     window.pehredar.settings.get().then((s) => {
       if (s && s.accent) document.body.setAttribute("data-accent", s.accent);

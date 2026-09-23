@@ -12,6 +12,8 @@ pehredar --json-stream -o r.json  # one JSON line per check (for GUI/CI)
 pehredar --skip-check check_build_tags   # skip specific checks
 pehredar --adb-path "C:\platform-tools\adb.exe"   # custom adb
 pehredar --help
+pehredar-diff old.json new.json          # scan diffing (text output, exit 1 = new findings)
+pehredar-diff old.json new.json --format json -o diff.json
 ```
 
 ## Extending checks
@@ -40,6 +42,32 @@ Larger groups belong in a dedicated module (see `pehredar/checks/spyware.py`) �
 pip install -e .[dev]
 pytest          # mocked ADB — no device needed
 ```
+
+## Packaged build (zero-dependency installer)
+
+The Electron installer ships a standalone Python core (PyInstaller onefile)
+plus adb/fastboot, so end users need nothing installed:
+
+```bash
+pip install -e .[dev]              # includes pyinstaller
+python scripts/fetch-adb.py        # downloads official platform-tools → gui/resources/bin/<platform>/
+python scripts/build_core.py       # PyInstaller → pehredar-core(.exe) + pehredar-agent-core(.exe)
+cd gui && npm run build:win        # or build:linux (bundles resources/bin/<platform>/)
+```
+
+- `gui/resources/bin/` is git-ignored — binaries are fetched/built at
+  release time, never committed. `pehredar/bundled.py` is the testable path
+  contract (`tests/test_bundled_paths.py`); `gui/scripts/bundled-paths.js`
+  mirrors it for `gui/main.js`. Dev mode (`electron .`) still uses system
+  `python -m pehredar.*` + PATH `adb`, so contributors don't need the bundle.
+### Third-party binaries
+
+The bundled `adb`/`fastboot` binaries originate from the Apache-2.0-licensed
+AOSP sources (`platform/packages/modules/adb`) — the same basis established
+Android tooling projects (e.g. Genymobile/scrcpy) rely on. Full rationale,
+upstream attribution, and links live in
+[NOTICE-THIRD-PARTY.md](../NOTICE-THIRD-PARTY.md); re-verify it before
+publishing any release that embeds the binaries.
 
 ## JSON report format
 
@@ -81,8 +109,17 @@ pytest          # mocked ADB — no device needed
 | **Accessibility Services** | Enabled services that aren't known screen readers | High |
 | **Device Admin** | Third-party device admin / owner apps | High |
 | **Sensitive Permissions** | Hidden apps with SMS + Camera + Mic + Location | High |
+| **Known Stalkerware** | `pm list packages` matched against `pehredar/checks/stalkerware_db.json` (CAS/TinyCheck curated exact + prefix IDs) | High |
 
 `INCONCLUSIVE` results (e.g. a timed-out probe) are never counted as failures and never inflate the risk score.
+
+## Stalkerware DB (`pehredar/checks/stalkerware_db.json`)
+
+Manually curated snapshot of Coalition Against Stalkerware + TinyCheck indicators — exact package IDs plus family prefixes (package IDs rotate, so `com.mspy.`-style prefixes catch variants). To update: add/edit entries (`package`, `match: exact|prefix`, `label`, `source`, `severity`, `note`), then run `pytest tests/test_stalkerware_db.py`. Exact-match-only is used for generic disguise names (`com.android.system.service`) to avoid false positives — always cross-check with the hidden-app + permissions checks before removal.
+
+## Scan diffing (`pehredar/diff.py` + `pehredar-diff`)
+
+`diff_reports(old, new)` compares two JSON reports by check name: newly failing / resolved / still-failing checks, added / removed flagged packages, and risk-level/score delta. `format_diff_text()` renders the personal-safety summary ("New flagged apps since last scan: ..."). CLI exit code is 1 when new failures or new packages appear, else 0 — usable in scripts.
 
 ## Agent CLI (`pehredar-agent`)
 

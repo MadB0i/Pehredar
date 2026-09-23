@@ -12,12 +12,19 @@
       '<div class="card stat-card"><div class="stat-label">Most Common Risk</div><div class="stat-value" id="stat-risk">—</div></div>' +
       '<div class="card stat-card"><div class="stat-label">Last Scan</div><div class="stat-value mono" id="stat-last">—</div></div>' +
       "</div>" +
-      '<div class="card device-card">' +
+      '<div class="card device-card" id="dash-device-card">' +
       '<div class="card-title">DEVICE</div>' +
+      '<div class="device-skel" id="dash-device-skel">' +
+      '<span class="skeleton-bar" style="height:20px;width:60%"></span>' +
+      '<span class="skeleton-bar" style="height:12px;width:40%"></span>' +
+      '<span class="skeleton-bar" style="height:12px;width:80%"></span>' +
+      "</div>" +
+      '<div id="dash-device-live" style="display:none">' +
       '<div class="device-big mono" id="dash-device-model">No device connected</div>' +
       '<div class="device-sub mono" id="dash-device-serial"></div>' +
       '<div class="device-prop"><span class="plabel">Android</span><span class="pval mono" id="dash-device-android">—</span></div>' +
       '<div class="device-prop"><span class="plabel">Status</span><span class="pval" id="dash-device-status">offline</span></div>' +
+      "</div>" +
       "</div>" +
       '<div id="dash-scan-slot"></div>' +
       '<div class="card checks-overview">' +
@@ -64,6 +71,12 @@
     const el = document.getElementById("view-dashboard");
     if (!mounted || !el) return;
     const info = await window.pehredar.deviceInfo();
+    // First resolve swaps the shape-matched skeleton for live content;
+    // later refreshes update in place with no flash.
+    const skel = el.querySelector("#dash-device-skel");
+    const live = el.querySelector("#dash-device-live");
+    if (skel) skel.style.display = "none";
+    if (live) live.style.display = "";
     const model = el.querySelector("#dash-device-model");
     const serial = el.querySelector("#dash-device-serial");
     const android = el.querySelector("#dash-device-android");

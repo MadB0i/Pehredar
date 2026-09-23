@@ -282,12 +282,10 @@ body::after {
 .device-chip.online .conn-dot {
   background: var(--green);
   box-shadow: 0 0 10px var(--green);
-  animation: pulse 1.6s ease-in-out infinite;
 }
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 4px var(--green), 0 0 10px var(--green); }
-  50% { box-shadow: 0 0 8px var(--green), 0 0 20px var(--green); }
-}
+/* NOTE: the "online" dot stays static. The moment of connection gets a
+   one-shot ring ping via .connect-ping (motion-tokens.css), fired from
+   app.js on the false→true transition only. */
 .device-meta { display: flex; flex-direction: column; line-height: 1.3; }
 .device-model { font-size: 12.5px; color: var(--text); letter-spacing: 0.5px; }
 .device-serial { font-size: 10.5px; color: var(--text-faint); }

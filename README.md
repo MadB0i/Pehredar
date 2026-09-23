@@ -8,7 +8,7 @@
 
 ## What is Pehredar?
 
-One tool, two audiences. For developers and QA teams it's a compliance-testing tool that verifies how an Android app behaves against rooted or compromised devices — 11 detection checks over ADB, nothing installed on the phone, and client-ready JSON/HTML reports. For individuals it's a way to check whether your own phone has been tampered with or carries hidden monitoring (spyware/stalkerware) apps — plug in, click a button, read results in plain language. Both share the exact same detection engine; only the presentation differs.
+One tool, two audiences. For developers and QA teams it's a compliance-testing tool that verifies how an Android app behaves against rooted or compromised devices — 12 detection checks over ADB, nothing installed on the phone, and client-ready JSON/HTML reports. For individuals it's a way to check whether your own phone has been tampered with or carries hidden monitoring (spyware/stalkerware) apps — plug in, click a button, read results in plain language. Both share the exact same detection engine; only the presentation differs.
 
 ## Screenshots
 
@@ -16,7 +16,20 @@ One tool, two audiences. For developers and QA teams it's a compliance-testing t
 | --------- | --------- | ----------- |
 | ![Dashboard](screenshots/dashboard.png) | ![Live scan](screenshots/scan-live.png) | ![Scan detail](screenshots/scan-detail.png) |
 
-## Quick Start
+## Download (packaged app — no setup)
+
+No Python or ADB install needed — both are bundled inside the installer.
+Grab the latest release from
+[GitHub Releases](https://github.com/MadB0i/Pehredar/releases),
+install, plug in your phone with USB Debugging on, and click Scan.
+
+- Windows: `Pehredar-*-win-*.exe` (unsigned — accept the SmartScreen prompt, verify `SHA256SUMS.txt`)
+- Linux: `Pehredar-*-linux-*.AppImage` (`chmod +x`, then run)
+
+The installer embeds Google's Android SDK Platform Tools (adb/fastboot) —
+see [NOTICE-THIRD-PARTY.md](NOTICE-THIRD-PARTY.md) for the license note.
+
+## Quick Start (from source — Python + adb required)
 
 ```bash
 # prerequisites: Python 3.8+ and adb (Android Platform Tools)
@@ -28,7 +41,8 @@ pip install -e .
 Enable **USB Debugging** on your phone (Settings → Developer Options), connect it, and authorize the computer when prompted. Then:
 
 ```bash
-pehredar        # runs 11 checks and prints a risk summary
+pehredar        # runs 12 checks and prints a risk summary
+pehredar-diff old.json new.json   # what changed since last scan (exit 1 = new findings)
 ```
 
 Or launch the desktop app: `cd gui && npm install && npm start`.
@@ -36,7 +50,8 @@ Or launch the desktop app: `cd gui && npm install && npm start`.
 ## Features
 
 - Root/jailbreak detection: su binary, root apps (Magisk/SuperSU), build tags, debuggable props, writable `/system`, BusyBox, Magisk Hide
-- Spyware detection: hidden apps, accessibility services, device admin/owner, apps holding SMS + camera + mic + location
+- Spyware detection: hidden apps, accessibility services, device admin/owner, apps holding SMS + camera + mic + location, known-stalkerware list (CAS/TinyCheck curated)
+- Scan diffing: `pehredar-diff old.json new.json` shows new apps, new failures, risk change since last scan
 - Risk scoring (Low/Medium/High) with JSON report and JSON streaming export
 - Electron GUI: animated scan graph, dashboard, history, settings, one-click HTML report export
 - Review & Remove: uninstall flagged apps over ADB (system apps protected, explicit confirmation required)

@@ -9,9 +9,11 @@ from .adb import ADBConnection, ADBError, NoDeviceError, UnauthorizedError
 from .checks import run_all_checks
 from .output import generate_json_report, print_results_table, print_summary_panel
 from .scoring import get_summary
+from .version import __version__
 
 
 @click.command()
+@click.version_option(__version__, prog_name="pehredar")
 @click.option("--serial", "-s", default=None, help="Target device serial (optional, uses first authorized device)")
 @click.option("--output", "-o", default="pehredar_report.json", help="Output JSON report path")
 @click.option("--no-table", is_flag=True, help="Suppress terminal table output")

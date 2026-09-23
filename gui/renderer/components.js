@@ -159,6 +159,13 @@
       short: "Hidden apps holding SMS + Camera + Mic + Location.",
       long: "Spyware often silently grabs every sensitive permission. Flags hidden apps granted the full combination of SMS, camera, microphone and location.",
     },
+    {
+      slug: "check_known_stalkerware",
+      name: "Known Stalkerware",
+      category: "spyware",
+      short: "Matches installs against a known-stalkerware indicator list.",
+      long: "Compares installed packages against a curated list of known stalkerware families (exact IDs plus family prefixes). A match is a strong, specific signal — verify before removing.",
+    },
   ];
 
   function checksByCategory() {

@@ -64,6 +64,11 @@
       pass: "No hidden app has full access to your messages, camera, microphone and location.",
       fail: "A hidden app can access your messages, camera, microphone and location.",
     },
+    check_known_stalkerware: {
+      name: "Known spyware list match",
+      pass: "None of your apps match the known spyware list.",
+      fail: "An app matches the known spyware list — review it carefully before removing.",
+    },
   };
 
   var FALLBACK = {

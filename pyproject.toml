@@ -34,12 +34,14 @@ keywords = ["android", "root", "jailbreak", "adb", "security", "detection"]
 [project.scripts]
 pehredar = "pehredar.cli:main"
 pehredar-agent = "pehredar.agent_cli:main"
+pehredar-diff = "pehredar.diff_cli:main"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-mock>=3.10.0",
     "ruff>=0.1.0",
+    "pyinstaller>=6.0",
 ]
 
 [tool.setuptools.packages.find]

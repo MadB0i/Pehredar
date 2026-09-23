@@ -13,6 +13,7 @@
     { slug: "check_accessibility_services", label: "ACCESSIBILITY", simple: "SCREEN READ" },
     { slug: "check_device_admin", label: "DEVICE ADMIN", simple: "DEVICE CONTROL" },
     { slug: "check_sensitive_permissions", label: "SENSITIVE PERMS", simple: "FULL SPY ACCESS" },
+    { slug: "check_known_stalkerware", label: "KNOWN STALKERWARE", simple: "KNOWN SPYWARE" },
   ];
 
   const COLORS = {
@@ -37,6 +38,11 @@
     let center = null;
     let time = 0;
     let rafId = null;
+    // Under reduced motion the frame loop still redraws (so event-driven
+    // state changes appear) but time freezes — no marching edges, no
+    // pulsing nodes, no breathing center. Information without motion.
+    const reduceMotion =
+      window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     function layout() {
       const w = canvas.clientWidth;
@@ -125,7 +131,7 @@
     }
 
     function draw() {
-      time += 0.016;
+      if (!reduceMotion) time += 0.016;
       drawBackground();
 
       for (const n of nodes) {

@@ -5,8 +5,15 @@
   "main": "main.js",
   "author": "Pehredar Contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadB0i/Pehredar.git"
+  },
   "scripts": {
     "start": "electron .",
+    "fetch:adb": "python ../scripts/fetch-adb.py",
+    "build:core": "python ../scripts/build_core.py",
+    "build:bundle": "npm run fetch:adb && npm run build:core",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
@@ -22,15 +29,11 @@
     "files": [
       "main.js",
       "preload.js",
+      "scripts/bundled-paths.js",
       "assets/**/*",
       "renderer/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "../pehredar",
-        "to": "pehredar"
-      }
-    ],
+    "extraResources": [],
     "directories": {
       "output": "dist"
     },
@@ -38,14 +41,33 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.ico",
+      "artifactName": "Pehredar-${version}-win-${arch}.exe",
+      "extraResources": [
+        {
+          "from": "resources/bin/win",
+          "to": "bin/win"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Pehredar"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "icon": "assets/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "Pehredar-${version}-linux-${arch}.AppImage",
+      "extraResources": [
+        {
+          "from": "resources/bin/linux",
+          "to": "bin/linux"
+        }
+      ]
     }
   }
 }

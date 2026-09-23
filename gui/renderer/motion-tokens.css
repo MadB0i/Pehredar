@@ -1,0 +1,174 @@
+/* ============================================================
+   Pehredar motion system
+   Every animation here must pass one test: does it communicate real
+   state or progress? If not, it doesn't belong. No decorative motion:
+   no gradient blobs, no bounce/elastic easing, no indiscriminate
+   hover-scale.
+   Tokens: entrances use --ease-enter (ease-out), exits --ease-exit
+   (ease-in). Scan progress is driven by real backend check events —
+   never by fixed timers — so durations below govern transitions
+   between states, not the scan itself.
+   ============================================================ */
+:root {
+  --duration-micro: 120ms;
+  --duration-panel: 240ms;
+  --duration-reveal: 360ms;
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+/* ---- tab navigation: consistent crossfade across all views ---- */
+.view {
+  transition-duration: var(--duration-panel);
+}
+.view.active {
+  transition-duration: var(--duration-panel);
+}
+
+/* ---- scan checklist: live per-check states, event-driven ---- */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--s3);
+}
+.cl-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 5px var(--s2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  overflow: hidden;
+}
+.cl-glyph {
+  flex: 0 0 16px;
+  text-align: center;
+  font-size: 12px;
+}
+.cl-row[data-state="pending"] .cl-glyph::before { content: "○"; }
+.cl-row[data-state="skipped"] { opacity: 0.45; }
+.cl-row[data-state="skipped"] .cl-glyph::before { content: "–"; }
+.cl-row[data-state="running"] { color: var(--yellow); }
+.cl-row[data-state="running"] .cl-glyph::before { content: "◌"; }
+/* scanning indicator: thin underline sweep on the running row only */
+.cl-row[data-state="running"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--yellow), transparent);
+  transform-origin: left center;
+  animation: cl-scan var(--duration-reveal) var(--ease-exit) infinite;
+}
+@keyframes cl-scan {
+  0% { transform: scaleX(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.cl-row[data-state="pass"] { color: var(--text-dim); }
+.cl-row[data-state="pass"] .cl-glyph::before { content: "✓"; color: var(--green); }
+.cl-row[data-state="fail"] { color: var(--text); }
+.cl-row[data-state="fail"] .cl-glyph::before { content: "✗"; color: var(--red); }
+.cl-row[data-state="inconclusive"] { color: var(--text-dim); }
+.cl-row[data-state="inconclusive"] .cl-glyph::before { content: "!"; color: var(--yellow); }
+.cl-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- risk reveal: panel rise, badge pop, calm HIGH pulse ---- */
+#risk-panel.revealing {
+  animation: panel-rise var(--duration-panel) var(--ease-enter);
+}
+@keyframes panel-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.risk-value.pop {
+  animation: badge-pop var(--duration-panel) var(--ease-enter);
+}
+@keyframes badge-pop {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* HIGH severity: slow, calm breathing — a professional signal, not an alarm */
+.risk-value.level-high.pulse-calm {
+  animation: high-calm 2.6s ease-in-out infinite;
+}
+@keyframes high-calm {
+  0%, 100% { text-shadow: 0 0 22px var(--red-soft); }
+  50% { text-shadow: 0 0 34px rgba(255, 45, 85, 0.4); }
+}
+
+/* ---- skeleton placeholders: shape-matched shimmer while loading ---- */
+.skeleton-bar {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 184, 255, 0.07) 25%,
+    rgba(148, 184, 255, 0.16) 50%,
+    rgba(148, 184, 255, 0.07) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.history-skel {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 13px var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.device-skel { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* ---- device connect: one-shot ping on first detection ---- */
+.device-chip { position: relative; }
+.device-chip.connect-ping .conn-dot::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid var(--green);
+  animation: connect-ping 600ms var(--ease-enter);
+  pointer-events: none;
+}
+.conn-dot { position: relative; }
+@keyframes connect-ping {
+  from { transform: scale(0.4); opacity: 1; }
+  to { transform: scale(1.5); opacity: 0; }
+}
+
+/* ============================================================
+   Reduced motion: every animation above collapses to an instant
+   state change. This also settles pre-existing transitions
+   (views, overlays, toast, splash) — the correct behavior when
+   the OS requests reduced motion.
+   JS-driven motion (score count-up) checks matchMedia separately
+   and sets final values instantly.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

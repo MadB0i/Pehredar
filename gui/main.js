@@ -2,6 +2,10 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { execFile, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+// NOTE: bundled-paths.js must stay listed in package.json build.files,
+// otherwise the packaged app.asar ships without it and every packaged
+// launch crashes with "Cannot find module './scripts/bundled-paths'".
+const bundledPaths = require("./scripts/bundled-paths");
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -20,6 +24,7 @@ const CHECK_CATEGORIES = {
     "check_accessibility_services",
     "check_device_admin",
     "check_sensitive_permissions",
+    "check_known_stalkerware",
   ],
 };
 
@@ -82,9 +87,21 @@ function saveSettings(patch) {
   return merged;
 }
 
-function adbExecutable() {
+function customAdbPath() {
   const s = getSettings();
-  return s.adbPath && s.adbPath.trim() ? s.adbPath.trim() : "adb";
+  return s.adbPath && s.adbPath.trim() ? s.adbPath.trim() : "";
+}
+
+function adbExecutable() {
+  const custom = customAdbPath();
+  if (custom) return custom;
+  if (app.isPackaged) {
+    // Zero-dep packaged app: prefer the bundled adb so no platform-tools
+    // install is required. Falls back to PATH adb on unsupported platforms.
+    const bundled = bundledPaths.bundledAdbPath(process.resourcesPath, process.platform);
+    if (bundled) return bundled;
+  }
+  return "adb";
 }
 
 function skippedChecks() {
@@ -115,8 +132,9 @@ function ensureDir(dir) {
 }
 
 function resolveProjectRoot() {
-  // In dev the project root is one level above gui/. When packaged, the
-  // bundled `pehredar` Python package lives in the app resources.
+  // Dev working dir is the project root (one level above gui/). When
+  // packaged, the standalone binaries carry their own Python runtime, so
+  // this is only a (harmless, existing) spawn cwd.
   if (app.isPackaged) return process.resourcesPath;
   return path.resolve(__dirname, "..");
 }
@@ -124,6 +142,29 @@ function resolveProjectRoot() {
 function pythonCommand() {
   if (process.env.PEHREDAR_PY) return process.env.PEHREDAR_PY;
   return process.platform === "win32" ? "python" : "python3";
+}
+
+// ---- bundled binaries (packaged app) ----
+// Dev (app.isPackaged === false) keeps the old behavior: system python
+// (`python -m pehredar.cli` / `pehredar.agent_cli`) and `adb` from PATH.
+// Packaged builds use the standalone PyInstaller binaries plus adb from
+// <resources>/bin/<win|linux>/, so no Python or platform-tools install is
+// required. Paths may contain spaces (e.g. "C:\Program Files\...") —
+// spawn() with an args array handles that without shell quoting.
+function coreLaunch(kind) {
+  return bundledPaths.resolveLaunch({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    platform: process.platform,
+    kind,
+    settingsAdbPath: customAdbPath(),
+  });
+}
+
+function packagedFastbootPath() {
+  if (!app.isPackaged) return null;
+  const p = bundledPaths.bundledFastbootPath(process.resourcesPath, process.platform);
+  return p && fs.existsSync(p) ? p : null;
 }
 
 function appIconPath() {
@@ -221,10 +262,19 @@ function reportPath() {
 function startScan() {
   if (!currentDeviceSerial || scanProcess) return;
 
+  const launch = coreLaunch("scan");
+  if (launch.error) {
+    // Clear, actionable failure instead of a silent crash when the bundled
+    // binary is missing or the platform is unsupported.
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("scan-error", { code: -1, error: launch.error });
+    }
+    return;
+  }
+
   const root = resolveProjectRoot();
   const args = [
-    "-m",
-    "pehredar.cli",
+    ...launch.argsPrefix,
     "-s",
     currentDeviceSerial,
     "-o",
@@ -232,23 +282,21 @@ function startScan() {
     "--json-stream",
     "--quiet",
   ];
-  const settings = getSettings();
-  if (settings.adbPath && settings.adbPath.trim()) {
-    args.push("--adb-path", settings.adbPath.trim());
+  if (launch.mode === "bundled") {
+    // Zero-dep: always point the frozen core at the bundled adb (the
+    // frozen default would be plain "adb" from PATH).
+    args.push("--adb-path", launch.adbPath);
+  } else if (customAdbPath()) {
+    args.push("--adb-path", customAdbPath());
   }
   for (const slug of skippedChecks()) {
     args.push("--skip-check", slug);
   }
 
-  const env = Object.assign({}, process.env);
-  if (app.isPackaged) {
-    env.PYTHONPATH = process.resourcesPath + (env.PYTHONPATH ? path.delimiter + env.PYTHONPATH : "");
-  }
-
-  scanProcess = spawn(pythonCommand(), args, {
+  const command = launch.mode === "bundled" ? launch.command : pythonCommand();
+  scanProcess = spawn(command, args, {
     cwd: root,
     windowsHide: true,
-    env,
   });
 
   let buffer = "";
@@ -351,11 +399,19 @@ function runAgent(kind, opts) {
 }
 
 function spawnAgent(kind, opts) {
+  const launch = coreLaunch("agent");
+  if (launch.error) {
+    agentEvent({ type: "error", error: launch.error });
+    return false;
+  }
   const root = resolveProjectRoot();
-  const args = ["-m", "pehredar.agent_cli", "-s", currentDeviceSerial, "--json-stream"];
-  const settings = getSettings();
-  if (settings.adbPath && settings.adbPath.trim()) {
-    args.push("--adb-path", settings.adbPath.trim());
+  const args = [...launch.argsPrefix, "-s", currentDeviceSerial, "--json-stream"];
+  if (launch.mode === "bundled") {
+    args.push("--adb-path", launch.adbPath);
+    const fb = packagedFastbootPath();
+    if (fb) args.push("--fastboot-path", fb);
+  } else if (customAdbPath()) {
+    args.push("--adb-path", customAdbPath());
   }
   args.push("--workdir", agentWorkdir());
 
@@ -379,7 +435,7 @@ function spawnAgent(kind, opts) {
   }
 
   if (kind === "plan-root" || kind === "run-root") {
-    args.push("--mode", settings.agentMode === "permanent" ? "permanent" : "temporary");
+    args.push("--mode", getSettings().agentMode === "permanent" ? "permanent" : "temporary");
   }
   if (kind === "plan-root") {
     args.push("--plan-only");
@@ -391,12 +447,8 @@ function spawnAgent(kind, opts) {
     args.push("--yes");
   }
 
-  const env = Object.assign({}, process.env);
-  if (app.isPackaged) {
-    env.PYTHONPATH = process.resourcesPath + (env.PYTHONPATH ? path.delimiter + env.PYTHONPATH : "");
-  }
-
-  agentProcess = spawn(pythonCommand(), args, { cwd: root, windowsHide: true, env });
+  const command = launch.mode === "bundled" ? launch.command : pythonCommand();
+  agentProcess = spawn(command, args, { cwd: root, windowsHide: true });
 
   let buffer = "";
   agentProcess.stdout.setEncoding("utf8");
@@ -637,6 +689,8 @@ ipcMain.on("agent:start", (_e, kind, opts) => runAgent(kind, opts));
 ipcMain.on("agent:cancel", () => killAgent());
 
 ipcMain.handle("fastboot:detect", async () => {
+  const packaged = packagedFastbootPath();
+  if (packaged) return { found: true, path: packaged };
   return new Promise((resolve) => {
     const exe = process.platform === "win32" ? "where" : "which";
     execFile(exe, ["fastboot"], { timeout: 4000 }, (err, stdout) => {
@@ -673,13 +727,23 @@ ipcMain.handle("settings:get", () => getSettings());
 ipcMain.handle("settings:set", (_e, patch) => saveSettings(patch || {}));
 
 // ---- adb configuration ----
+function adbNotFoundMessage(exe) {
+  if (app.isPackaged && !customAdbPath() && exe !== "adb") {
+    return (
+      `Bundled adb not found at '${exe}'. Reinstall Pehredar from the latest ` +
+      `GitHub Release, or set Settings → ADB path to a manual platform-tools install.`
+    );
+  }
+  return `adb not found at '${exe}'`;
+}
+
 function runAdbDevices(adbPath) {
   return new Promise((resolve) => {
     const exe = adbPath && adbPath.trim() ? adbPath.trim() : "adb";
     execFile(exe, ["devices"], { timeout: 6000 }, (err, stdout, stderr) => {
       if (err) {
         if (err.code === "ENOENT") {
-          resolve({ ok: false, error: `adb not found at '${exe}'`, stdout: "", stderr: "" });
+          resolve({ ok: false, error: adbNotFoundMessage(exe), stdout: "", stderr: "" });
         } else {
           resolve({ ok: false, error: String(err.message), stdout: String(stdout || ""), stderr: String(stderr || "") });
         }
@@ -697,6 +761,11 @@ ipcMain.handle("adb:test", async (_e, adbPath) => {
 });
 
 ipcMain.handle("adb:detect", async () => {
+  if (app.isPackaged && !customAdbPath()) {
+    const bundled = bundledPaths.bundledAdbPath(process.resourcesPath, process.platform);
+    if (bundled && fs.existsSync(bundled)) return { found: true, path: bundled };
+    return { found: false, path: bundled || "" };
+  }
   return new Promise((resolve) => {
     const exe = process.platform === "win32" ? "where" : "which";
     execFile(exe, ["adb"], { timeout: 4000 }, (err, stdout) => {
