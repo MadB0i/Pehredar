@@ -1,68 +1,43 @@
 # Pehredar
 
-**Pehredar** (Hindi: पहरेदार, "watchman / guard") checks Android devices for root, jailbreak, and hidden-monitoring indicators over ADB — no on-device installation required.
+**Know what's really on your Android phone.**
 
-![Build](https://img.shields.io/badge/build-pending-lightgrey) <!-- TODO: point at your CI workflow status badge -->
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-00e5ff)
-
-## What is Pehredar?
-
-One tool, two audiences. For developers and QA teams it's a compliance-testing tool that verifies how an Android app behaves against rooted or compromised devices — 12 detection checks over ADB, nothing installed on the phone, and client-ready JSON/HTML reports. For individuals it's a way to check whether your own phone has been tampered with or carries hidden monitoring (spyware/stalkerware) apps — plug in, click a button, read results in plain language. Both share the exact same detection engine; only the presentation differs.
+Pehredar checks your phone for hidden monitoring and tampering — rooting, spyware, stalkerware — over USB, with nothing installed on the phone itself. If something serious turns up, it explains the finding in plain language and never rushes you toward removal: deleting spyware can alert whoever put it there.
 
 ## Screenshots
 
-| Dashboard | Live scan | Scan detail |
-| --------- | --------- | ----------- |
-| ![Dashboard](screenshots/dashboard.png) | ![Live scan](screenshots/scan-live.png) | ![Scan detail](screenshots/scan-detail.png) |
+| Dashboard | Live scan |
+| --------- | --------- |
+| ![Dashboard](screenshots/dashboard.png) | ![Live scan](screenshots/scan-live.png) |
 
-## Download (packaged app — no setup)
+| Safety-first flow | History + compare |
+| ----------------- | ----------------- |
+| ![Safety first](screenshots/safety-first.png) | ![History](screenshots/history.png) |
 
-No Python or ADB install needed — both are bundled inside the installer.
-Grab the latest release from
-[GitHub Releases](https://github.com/MadB0i/Pehredar/releases),
-install, plug in your phone with USB Debugging on, and click Scan.
+## Download & install
 
-- Windows: `Pehredar-*-win-*.exe` (unsigned — accept the SmartScreen prompt, verify `SHA256SUMS.txt`)
-- Linux: `Pehredar-*-linux-*.AppImage` (`chmod +x`, then run)
+Grab the latest installer from [GitHub Releases](https://github.com/MadB0i/Pehredar/releases) — Python and ADB are bundled inside, nothing else to install.
 
-The installer embeds Google's Android Debug Bridge (adb) —
-see [NOTICE-THIRD-PARTY.md](NOTICE-THIRD-PARTY.md) for the license note.
+- Windows: `Pehredar-*-win-*.exe` (unsigned, so SmartScreen will ask — verify `SHA256SUMS-win.txt`)
+- Linux: `Pehredar-*.AppImage` (`chmod +x`, then run)
 
-## Quick Start (from source — Python + adb required)
+## Quick start
 
-```bash
-# prerequisites: Python 3.8+ and adb (Android Platform Tools)
-git clone https://github.com/MadB0i/Pehredar.git
-cd Pehredar
-pip install -e .
-```
+1. Install Pehredar from the link above.
+2. On the phone: tap **Build number** 7 times, turn on **USB debugging**, plug in with USB.
+3. Accept the *Allow USB debugging?* prompt on the phone.
+4. Click **New Scan** and read the plain-language summary.
 
-Enable **USB Debugging** on your phone (Settings → Developer Options), connect it, and authorize the computer when prompted. Then:
+## What it checks
 
-```bash
-pehredar        # runs 12 checks and prints a risk summary
-pehredar-diff old.json new.json   # what changed since last scan (exit 1 = new findings)
-```
+| Root / jailbreak (7) | Spyware / stalkerware (5) |
+| -------------------- | ------------------------- |
+| SU binary, root packages (Magisk/SuperSU), build tags, debuggable props, writable `/system`, BusyBox, Magisk Hide | Hidden apps (no icon), accessibility abuse, device admin/owner, SMS+camera+mic+location combo, known-stalkerware list |
 
-Or launch the desktop app: `cd gui && npm install && npm start`.
+## Safety first
 
-## Features
+High-risk findings don't lead straight to an Uninstall button. Pehredar shows a calm choice screen first: preserve evidence (stored off the phone, never in a shared account), remove with understanding, or see India support options (112, 181, NCW 14490, Cyber 1930). Scan verdicts are indicators, never proof — verify before acting.
 
-- Root/jailbreak detection: su binary, root apps (Magisk/SuperSU), build tags, debuggable props, writable `/system`, BusyBox, Magisk Hide
-- Spyware detection: hidden apps, accessibility services, device admin/owner, apps holding SMS + camera + mic + location, known-stalkerware list (CAS/TinyCheck curated)
-- Scan diffing: `pehredar-diff old.json new.json` shows new apps, new failures, risk change since last scan
-- Risk scoring (Low/Medium/High) with JSON report and JSON streaming export
-- Electron GUI: animated scan graph, dashboard, history, settings, one-click HTML report export
-- Review & Remove: uninstall flagged apps over ADB (system apps protected, explicit confirmation required)
-- Simple Mode: plain-language results for non-technical users
+## License & contributing
 
-## Guides
-
-- **Full developer guide** — extend checks, JSON format, checks reference → [docs/for-developers.md](docs/for-developers.md)
-- **Using Pehredar for personal safety** — plain-language explainer → [docs/for-personal-use.md](docs/for-personal-use.md)
-- **Contributing** — setup, tests, PR expectations → [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Bundled ADB licensing: [NOTICE-THIRD-PARTY.md](NOTICE-THIRD-PARTY.md). Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) (developer guides live in [docs/](docs/for-developers.md)).
