@@ -2,6 +2,10 @@
 
 Pehredar checks your phone for two things: **signs that its security has been bypassed** (rooting/hacking) and **apps that could be spying on you** (hidden or overly powerful apps). Turn on **Simple Mode** in the desktop app's Settings to read results in everyday language.
 
+## Getting your phone ready
+
+When you first open Pehredar, a 3-step guide walks you through turning on USB debugging and trusting your computer. You can replay it any time from **Settings → ADB Configuration → Show USB setup guide**. The short version: tap *Build number* seven times, switch on *USB debugging*, plug in, and tap *Allow* on the phone.
+
 ## What a scan checks
 
 A typical scan checks:

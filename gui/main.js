@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS = {
   adbPath: "",
   accent: "cyan",
   simple: false,
+  onboarded: false,
   checks: {
     categories: { root: true, spyware: true },
     enabled: {},
@@ -56,6 +57,7 @@ function getSettings() {
     if (saved.adbPath !== undefined) base.adbPath = saved.adbPath;
     if (saved.accent !== undefined) base.accent = saved.accent;
     if (saved.simple !== undefined) base.simple = saved.simple;
+    if (saved.onboarded !== undefined) base.onboarded = saved.onboarded;
     if (saved.checks) {
       if (saved.checks.categories) base.checks.categories = Object.assign({}, base.checks.categories, saved.checks.categories);
       if (saved.checks.enabled) base.checks.enabled = Object.assign({}, base.checks.enabled, saved.checks.enabled);
@@ -755,6 +757,33 @@ app.whenReady().then(() => {
       process.exit(1);
     });
     mainWindow.webContents.once("did-finish-load", () => {
+      // Syntax-check every renderer script: a parse error kills only its
+      // own <script> tag, so boot alone would still look healthy.
+      try {
+        const vm = require("vm");
+        const root = app.isPackaged
+          ? path.join(process.resourcesPath, "app.asar", "renderer")
+          : path.join(__dirname, "renderer");
+        const walk = (dir) => {
+          let out = [];
+          for (const name of fs.readdirSync(dir)) {
+            const p = path.join(dir, name);
+            if (fs.statSync(p).isDirectory()) {
+              if (name !== "vendor") out = out.concat(walk(p));
+            } else if (name.endsWith(".js")) {
+              out.push(p);
+            }
+          }
+          return out;
+        };
+        for (const file of walk(root)) {
+          new vm.Script(fs.readFileSync(file, "utf8"), { filename: file });
+        }
+        console.log("SMOKE-OK renderer-syntax");
+      } catch (e) {
+        console.error("SMOKE-FAIL renderer-syntax: " + ((e && e.stack) || e));
+        process.exit(1);
+      }
       setTimeout(() => {
         console.log("SMOKE-OK window-loaded");
         app.exit(0);

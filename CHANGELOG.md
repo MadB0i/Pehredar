@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **First-run onboarding**: 3-step USB-debugging guide overlay on first launch (persisted flag, replayable from Settings → ADB Configuration), plus a matching section in the personal-use guide.
 - **Stalkerware DB updates**: versioned envelope (`version`/`updated`/`source`), `scripts/update_stalkerware_db.py` (`--check` freshness with exit 2 when stale, `--merge` for validated curator additions with auto version-bump), DB version stamped in scan evidence (`[db vN]`), warning-only CI freshness step.
 - **Scan-compare in the GUI**: History detail view gains a Compare button that diffs the scan against the previous one (new/resolved failures, new/removed flagged apps, risk change) — renderer-side port of `pehredar/diff.py`, verified field-identical against the Python output.
 - **GUI boot smoke test**: `electron . --smoke-test` boots the full app headlessly and exits 0 on `SMOKE-OK` (catches startup-crash class bugs like a module missing from `app.asar`); new `gui-smoke` CI job runs it under xvfb on every push/PR.

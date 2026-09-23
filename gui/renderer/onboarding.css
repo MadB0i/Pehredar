@@ -1,0 +1,46 @@
+/* Onboarding wizard: first-run USB-debugging guide.
+   Reuses the overlay pattern; steps are calm instructional cards. */
+
+.onboarding-card { max-width: 560px; }
+.onboarding-steps { display: flex; gap: var(--s2); margin-bottom: var(--s4); }
+.onboarding-dot {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(148, 184, 255, 0.14);
+}
+.onboarding-dot.done { background: var(--accent); }
+.onboarding-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-faint);
+  margin-bottom: var(--s2);
+}
+.onboarding-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--s3);
+}
+.onboarding-body { color: var(--text-dim); font-size: 13.5px; line-height: 1.75; }
+.onboarding-body ol { margin: var(--s3) 0 0 var(--s4); }
+.onboarding-body li { margin-bottom: var(--s2); }
+.onboarding-body code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border);
+}
+.onboarding-nav { display: flex; gap: var(--s2); }

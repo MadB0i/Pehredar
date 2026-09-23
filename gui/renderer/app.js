@@ -106,6 +106,7 @@
     window.wireNavIcons();
     window.Views.detail.bind();
     window.Views.review.bind();
+    window.Views.onboarding.bind();
     // The ping class is one-shot; drop it when its animation ends so a
     // later reconnect can fire it again.
     document.getElementById("device-chip").addEventListener("animationend", (e) => {
@@ -117,6 +118,9 @@
     window.pehredar.settings.get().then((s) => {
       if (s && s.accent) document.body.setAttribute("data-accent", s.accent);
       if (window.SimpleLabels) window.SimpleLabels.enabled = Boolean(s && s.simple);
+      // First run: the USB-debugging guide. Splash (z-200) covers it for
+      // ~2s, then it is revealed underneath — no extra timing needed.
+      if (s && !s.onboarded && window.Views.onboarding) window.Views.onboarding.show();
     });
     updateDeviceChip();
     router.show("dashboard");

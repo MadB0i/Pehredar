@@ -35,6 +35,8 @@
       "</div>" +
       '<div class="setting-row"><span class="slabel">Test Connection</span>' +
       '<button class="btn btn-ghost" id="adb-test">' + window.icon("settings", 15) + " Run adb devices</button></div>" +
+      '<div class="setting-row"><span class="slabel">Setup Guide</span>' +
+      '<button class="btn btn-ghost" id="set-guide">Show USB setup guide</button></div>' +
       '<div class="adb-test-box" id="adb-test-box"></div>' +
       "</div>" +
 
@@ -81,6 +83,9 @@
     el.querySelector("#adb-browse").addEventListener("click", onBrowse);
     el.querySelector("#adb-save").addEventListener("click", onAdbSave);
     el.querySelector("#adb-test").addEventListener("click", onAdbTest);
+    el.querySelector("#set-guide").addEventListener("click", () => {
+      if (window.Views.onboarding) window.Views.onboarding.show();
+    });
 
     const accents = el.querySelectorAll(".swatch");
     accents.forEach((sw) => sw.addEventListener("click", () => setAccent(sw.dataset.accent)));

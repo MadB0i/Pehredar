@@ -7,6 +7,7 @@
   <title>Pehredar</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="motion-tokens.css" />
+  <link rel="stylesheet" href="onboarding.css" />
 </head>
 <body>
   <!-- Splash -->
@@ -105,6 +106,30 @@
     </div>
   </div>
 
+  <!-- First-run onboarding overlay -->
+  <div id="onboarding-overlay" class="overlay hidden">
+    <div class="overlay-card onboarding-card">
+      <div class="overlay-head">
+        <span class="overlay-title">GETTING STARTED</span>
+      </div>
+      <div class="review-body">
+        <div class="onboarding-steps">
+          <span class="onboarding-dot"></span><span class="onboarding-dot"></span><span class="onboarding-dot"></span>
+        </div>
+        <div class="onboarding-kicker" id="onboarding-kicker"></div>
+        <div class="onboarding-title" id="onboarding-title"></div>
+        <div class="onboarding-body" id="onboarding-body"></div>
+        <div class="onboarding-actions">
+          <button id="onboarding-skip" class="btn btn-ghost">Skip</button>
+          <div class="onboarding-nav">
+            <button id="onboarding-back" class="btn btn-ghost">Back</button>
+            <button id="onboarding-next" class="btn btn-primary">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/chart.umd.js"></script>
   <script src="icons.js"></script>
   <script src="components.js"></script>
@@ -118,6 +143,7 @@
   <script src="views/settings.js"></script>
   <script src="views/about.js"></script>
   <script src="views/review.js"></script>
+  <script src="views/onboarding.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
