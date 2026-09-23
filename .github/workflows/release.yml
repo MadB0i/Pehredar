@@ -176,9 +176,18 @@ jobs:
           node gui/scripts/generate-update-meta.js --assets release-assets/win --version "$VERSION"
           node gui/scripts/generate-update-meta.js --assets release-assets/linux --version "$VERSION"
 
+      - name: Build release notes from CHANGELOG
+        # Fails loudly when the tag has no matching ## [x.y.z] section,
+        # so a release never ships with empty notes.
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python3 scripts/release_notes.py --version "$VERSION" > release-notes.md
+          head -12 release-notes.md
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: |
             release-assets/win/*.exe
             release-assets/win/SHA256SUMS-win.txt
@@ -186,17 +195,5 @@ jobs:
             release-assets/linux/*.AppImage
             release-assets/linux/SHA256SUMS-linux.txt
             release-assets/linux/latest-linux.yml
-          body: |
-            ## Pehredar Desktop (zero-dependency)
-
-            **Non-technical users:** download the installer below — Python and
-            ADB are bundled inside, so just install, plug in your phone with
-            USB Debugging on, and click Scan.
-
-            - Windows: `Pehredar-*.exe` (NSIS installer, unsigned — accept the SmartScreen prompt, then verify `SHA256SUMS-win.txt`)
-            - Linux: `Pehredar-*.AppImage` (`chmod +x` then run, verify `SHA256SUMS-linux.txt`)
-
-            > Note: installers are currently **unsigned**. Windows will show an "Unknown publisher" warning. Verify the SHA256 checksum before running.
-            > The installer embeds adb built from the Apache-2.0-licensed AOSP sources — see NOTICE-THIRD-PARTY.md for the licensing basis.
           draft: false
           prerelease: false
