@@ -9,6 +9,7 @@ from rich.table import Table
 from rich.text import Text
 
 from .checks import CheckResult
+from .safety import attach_safety, plain_summary
 from .scoring import get_summary
 from .version import __version__
 
@@ -38,6 +39,7 @@ def print_results_table(results: list[CheckResult], device_serial: str) -> None:
 
 def print_summary_panel(results: list[CheckResult]) -> None:
     summary = get_summary(results)
+    plain = plain_summary(results)
 
     risk_colors = {"High": "red bold", "Medium": "yellow bold", "Low": "green bold"}
     risk_color = risk_colors.get(summary["risk_level"], "white")
@@ -45,13 +47,14 @@ def print_summary_panel(results: list[CheckResult]) -> None:
     content = f"""[bold]Total Checks:[/bold] {summary['total_checks']}
 [bold]Passed:[/bold] {summary['passed']}  [bold]Failed:[/bold] {summary['failed']}  [bold]Inconclusive:[/bold] {summary['inconclusive']}
 [bold]High Severity:[/bold] {summary['high_severity']}  [bold]Medium:[/bold] {summary['medium_severity']}  [bold]Low:[/bold] {summary['low_severity']}
-[bold]Risk Level:[/bold] [{risk_color}]{summary['risk_level']}[/{risk_color}]  [bold]Score:[/bold] {summary['risk_score']}"""
+[bold]Risk Level:[/bold] [{risk_color}]{summary['risk_level']}[/{risk_color}]  [bold]Score:[/bold] {summary['risk_score']}
+[bold]Summary:[/bold] {plain['headline']}"""
 
     console.print(Panel(content, title="Summary", border_style=risk_color, expand=False))
 
 
 def generate_json_report(results: list[CheckResult], device_serial: str, output_path: str) -> None:
-    summary = get_summary(results)
+    summary = attach_safety(get_summary(results), results)
 
     report = {
         "tool": "Pehredar",

@@ -51,6 +51,12 @@
       "</div>" +
       "</div>" +
 
+      // ---- Support options (India) ----
+      '<div class="card">' +
+      '<div class="card-title">SUPPORT OPTIONS — INDIA</div>' +
+      '<div id="set-support"></div>' +
+      "</div>" +
+
       // ---- Appearance ----
       '<div class="card">' +
       '<div class="card-title">APPEARANCE</div>' +
@@ -300,6 +306,8 @@
     settings = await window.pehredar.settings.get();
     renderChecks();
     setAccentUI();
+    const support = el.querySelector("#set-support");
+    if (support && window.Safety) support.innerHTML = window.Safety.resourcesHTML();
     el.querySelector("#set-simple").checked = Boolean(settings.simple);
     el.querySelector("#adb-override").value = settings.adbPath || "";
     await detectAdb();

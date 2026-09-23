@@ -32,11 +32,11 @@
     state.labels = {};
     state.system = new Set();
     state.trusted = new Set();
+    state.checkName = checkName || "";
     currentHandler = null;
 
     const overlay = document.getElementById("review-overlay");
     overlay.classList.remove("hidden");
-    document.getElementById("review-title").textContent = "REVIEW & REMOVE — " + String(checkName || "").toUpperCase();
     const body = document.getElementById("review-body");
     body.innerHTML = '<div class="dim">Loading package info…</div>';
 
@@ -57,7 +57,46 @@
         }
       }
     }
-    renderList();
+    // Safety gate: only a genuine known-stalkerware match opens a choice
+    // screen first — never a direct Uninstall button. Every other finding
+    // goes straight to the normal list, whatever its severity.
+    if (window.Safety && window.Safety.gateApplies(state.checkName)) {
+      showSafety();
+    } else {
+      setListTitle();
+      renderList();
+    }
+  }
+
+  function setListTitle() {
+    document.getElementById("review-title").textContent =
+      "REVIEW & REMOVE — " + String(state.checkName || "").toUpperCase();
+  }
+
+  function showSafety() {
+    document.getElementById("review-title").textContent = "SAFETY FIRST";
+    window.Safety.renderSafety(document.getElementById("review-body"), {
+      checkName: state.checkName,
+      packages: state.packages,
+      onPreserve: () => {
+        document.getElementById("review-title").textContent = "PRESERVE EVIDENCE";
+        window.Safety.renderEvidence(document.getElementById("review-body"), {
+          onContinue: () => {
+            setListTitle();
+            renderList();
+          },
+          onBack: showSafety,
+        });
+      },
+      onRemove: () => {
+        setListTitle();
+        renderList();
+      },
+      onSupport: () => {
+        document.getElementById("review-title").textContent = "SUPPORT OPTIONS";
+        window.Safety.renderSupport(document.getElementById("review-body"), { onBack: showSafety });
+      },
+    });
   }
 
   function renderList() {

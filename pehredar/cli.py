@@ -8,6 +8,7 @@ import click
 from .adb import ADBConnection, ADBError, NoDeviceError, UnauthorizedError
 from .checks import run_all_checks
 from .output import generate_json_report, print_results_table, print_summary_panel
+from .safety import attach_safety
 from .scoring import get_summary
 from .version import __version__
 
@@ -62,7 +63,7 @@ def main(
     results = run_all_checks(adb, on_check=emit if json_stream else None, skip=set(skip_check))
 
     if json_stream:
-        summary = get_summary(results)
+        summary = attach_safety(get_summary(results), results)
         payload = {
             "status": "complete",
             "risk_level": summary["risk_level"],

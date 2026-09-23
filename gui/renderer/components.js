@@ -48,6 +48,15 @@
       " INCONCLUSIVE · " +
       (summary.high_severity ?? 0) +
       " HIGH</div>";
+    // Plain-language summary, generated from these same results by the
+    // backend (pehredar/safety.py). Shown as-is, in every mode.
+    if (summary.plain && (summary.plain.headline || summary.plain.body)) {
+      html +=
+        '<div class="plain-summary">' +
+        '<div class="plain-headline">' + esc(summary.plain.headline || "") + "</div>" +
+        '<div class="plain-body">' + esc(summary.plain.body || "") + "</div>" +
+        "</div>";
+    }
     html += '<div class="res-list">';
     for (const c of checks) {
       const display =
@@ -76,7 +85,9 @@
         } catch (e) {
           /* ignore malformed */
         }
-        if (window.App && window.App.review) window.App.review.open(btn.dataset.check, pkgs);
+        if (window.App && window.App.review) {
+          window.App.review.open(btn.dataset.check, pkgs);
+        }
       });
     });
   }

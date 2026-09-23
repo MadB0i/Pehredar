@@ -159,6 +159,32 @@ carries the DB version (`[db vN]`) so reports stay attributable.
 
 `diff_reports(old, new)` compares two JSON reports by check name: newly failing / resolved / still-failing checks, added / removed flagged packages, and risk-level/score delta. `format_diff_text()` renders the personal-safety summary ("New flagged apps since last scan: ..."). CLI exit code is 1 when new failures or new packages appear, else 0 — usable in scripts.
 
+## Why safety-first (`pehredar/safety.py` + `gui/renderer/views/safety.js`)
+
+This tool's core differentiator is restraint, not detection. Tech-safety
+practice — documented in guidance from groups working on technology-facilitated
+abuse such as NNEDV's Safety Net project — consistently warns that immediately
+deleting suspected monitoring software can alert someone with access to the
+device or accounts, and that preserving evidence should come before removal.
+So the app is built around three rules:
+
+1. Every scan carries a generated plain-language summary (`summary.plain`),
+   calibrated to the real severity. Reassuring when clean, neutral on
+   warnings, calm-but-clear on serious findings — never alarmist.
+2. Only a genuine known-stalkerware match (`summary.safety_gate`) opens a
+   choice screen before removal exists as an option: preserve evidence,
+   remove with understanding, or see support options. No single funnel, no
+   red styling. Every other finding — whatever its severity — goes straight
+   to the normal flow, so the gate never trains users to click past it.
+3. Support resources (India: 112, 181, NCW 14490, Cyber 1930,
+   cybercrime.gov.in) are static text with zero telemetry. Helpline numbers
+   are re-verified against official government pages before each release
+   that touches them.
+
+Check logic, DB matching and uninstall mechanics are deliberately untouched
+by all of this — the safety layer only changes what is shown, and in what
+order.
+
 ## Contributing
 
 1. Fork the repository
