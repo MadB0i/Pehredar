@@ -10,6 +10,9 @@
     document.getElementById("detail-backdrop").addEventListener("click", close);
     document.getElementById("detail-close").addEventListener("click", close);
     document.getElementById("detail-export").addEventListener("click", exportCurrent);
+    document.getElementById("detail-compare").addEventListener("click", () => {
+      if (currentId && window.Views.compare) window.Views.compare.openCompare(currentId);
+    });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !overlay.classList.contains("hidden")) close();
     });

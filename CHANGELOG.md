@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Scan-compare in the GUI**: History detail view gains a Compare button that diffs the scan against the previous one (new/resolved failures, new/removed flagged apps, risk change) — renderer-side port of `pehredar/diff.py`, verified field-identical against the Python output.
 - **GUI boot smoke test**: `electron . --smoke-test` boots the full app headlessly and exits 0 on `SMOKE-OK` (catches startup-crash class bugs like a module missing from `app.asar`); new `gui-smoke` CI job runs it under xvfb on every push/PR.
 
 ### Removed
