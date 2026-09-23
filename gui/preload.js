@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld("pehredar", {
     uninstall: (pkgs) => ipcRenderer.invoke("app:uninstall", pkgs),
   },
   deviceInfo: () => ipcRenderer.invoke("device:info"),
+  updater: {
+    check: () => ipcRenderer.invoke("updater:check"),
+    onStatus: (callback) => {
+      ipcRenderer.on("updater-status", (_event, data) => callback(data));
+    },
+  },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (patch) => ipcRenderer.invoke("settings:set", patch),

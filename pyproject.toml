@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pehredar"
-version = "1.0.0"
+version = "1.1.0"
 description = "Android Root/Jailbreak Detection via ADB"
 readme = "README.md"
 requires-python = ">=3.8"

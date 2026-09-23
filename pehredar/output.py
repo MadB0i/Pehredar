@@ -10,6 +10,7 @@ from rich.text import Text
 
 from .checks import CheckResult
 from .scoring import get_summary
+from .version import __version__
 
 console = Console()
 
@@ -54,7 +55,7 @@ def generate_json_report(results: list[CheckResult], device_serial: str, output_
 
     report = {
         "tool": "Pehredar",
-        "version": "1.0.0",
+        "version": __version__,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "device_serial": device_serial,
         "summary": summary,

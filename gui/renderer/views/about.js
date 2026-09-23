@@ -12,7 +12,14 @@
       '<div class="about-mark">' + window.brandIcon(72) + "</div>" +
       '<div class="about-name">PEHREDAR</div>' +
       '<div class="about-desc">On-device Android root & spyware detection agent. Runs 12 live checks over ADB — root binaries, build tampering, accessibility abuse, device admin, hidden apps and more — then scores device risk through a weighted pass/fail engine.</div>' +
-      '<div class="about-meta mono">v1.0.0 · Electron + Python</div>' +
+      '<div class="about-meta mono">v1.1.0 · Electron + Python</div>' +
+      "</div>" +
+
+      // updates
+      '<div class="card">' +
+      '<div class="card-title">UPDATES</div>' +
+      '<div class="setting-row"><span class="slabel" id="about-update-status">Not checked yet</span>' +
+      '<button class="btn btn-ghost" id="about-update-check">Check for updates</button></div>' +
       "</div>" +
 
       // how it works
@@ -37,7 +44,7 @@
       '<div class="about-links">' +
       link("github", "GitHub Repository", "github.com/MadB0i/Pehredar", "https://github.com/MadB0i/Pehredar") +
       link("about", "Report an Issue", "open a GitHub issue", "https://github.com/MadB0i/Pehredar/issues") +
-      link("history", "Changelog", "v1.0.0 — current release", null) +
+      link("history", "Changelog", "v1.1.0 — current release", null) +
       "</div>" +
       '<div class="changelog"><strong class="dim">v1.0.0</strong> · Initial release — 11-check engine (7 root, 4 spyware), JSON streaming, scored reports, multi-view Electron desktop app with persistent history and HTML report export.</div>' +
       "</div>" +
@@ -45,6 +52,10 @@
       "</div>";
 
     buildChecks(el);
+    el.querySelector("#about-update-check").addEventListener("click", onUpdateCheck);
+    if (window.pehredar.updater && window.pehredar.updater.onStatus) {
+      window.pehredar.updater.onStatus(onUpdaterStatus);
+    }
     el.querySelectorAll(".about-links a").forEach((a) => {
       if (a.getAttribute("href")) a.setAttribute("target", "_blank");
     });
@@ -71,6 +82,39 @@
       '<span class="lk-hint">' + hint + "</span>" +
       "</a>"
     );
+  }
+
+  async function onUpdateCheck() {
+    const el = document.getElementById("view-about");
+    const status = el.querySelector("#about-update-status");
+    const btn = el.querySelector("#about-update-check");
+    btn.disabled = true;
+    status.textContent = "Checking…";
+    try {
+      const res = await window.pehredar.updater.check();
+      if (!res || res.state === "unavailable") {
+        status.textContent = "Update check unavailable in dev mode";
+      } else if (res.state === "downloaded") {
+        status.textContent = "Update v" + (res.version || "") + " downloaded — restart to install";
+      } else if (res.state === "available") {
+        status.textContent = "Update v" + (res.version || "") + " found — downloading…";
+      } else if (res.state === "up-to-date") {
+        status.textContent = "You're on the latest version";
+      } else {
+        status.textContent = "Check failed: " + (res.error || "unknown");
+      }
+    } catch (e) {
+      status.textContent = "Check failed";
+    }
+    btn.disabled = false;
+  }
+
+  function onUpdaterStatus(d) {
+    if (!d || d.state !== "downloaded") return;
+    const el = document.getElementById("view-about");
+    const status = el && el.querySelector("#about-update-status");
+    if (status) status.textContent = "Update v" + (d.version || "") + " downloaded — restart to install";
+    window.App.toast("Update downloaded — restart to install");
   }
 
   function buildChecks(el) {

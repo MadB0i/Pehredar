@@ -729,6 +729,73 @@ ipcMain.handle("app:uninstall", async (_e, pkgs) => {
   return { removed, failed, canceled: false, results };
 });
 
+// ---- auto-update (packaged builds only) ----
+// GitHub Releases is the update server (see `publish.provider` in
+// package.json + latest*.yml uploaded by release.yml). Silent when
+// offline or when no release exists yet; never blocks startup.
+let updaterState = { state: "unknown", version: null };
+let runUpdateCheck = null;
+
+ipcMain.handle("updater:check", async () => {
+  if (!runUpdateCheck) return { state: "unavailable", version: null };
+  return runUpdateCheck();
+});
+
+function setupAutoUpdate() {
+  if (!app.isPackaged || process.argv.includes("--smoke-test")) return;
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require("electron-updater"));
+  } catch (e) {
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.on("error", () => {
+    updaterState = { state: "error", version: null, error: "unavailable" };
+  });
+  autoUpdater.on("update-available", (info) => {
+    updaterState = { state: "available", version: (info && info.version) || null };
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("updater-status", updaterState);
+    }
+  });
+  autoUpdater.on("update-not-available", () => {
+    updaterState = { state: "up-to-date", version: null };
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    updaterState = { state: "downloaded", version: (info && info.version) || null };
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("updater-status", updaterState);
+      dialog
+        .showMessageBox(mainWindow, {
+          type: "info",
+          title: "Update ready",
+          message: "Pehredar " + (updaterState.version || "update") + " has downloaded. Restart now to install it?",
+          buttons: ["Restart now", "Later"],
+          defaultId: 0,
+        })
+        .then(({ response }) => {
+          if (response === 0) autoUpdater.quitAndInstall();
+        });
+    }
+  });
+  runUpdateCheck = async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      if (result && result.updateInfo) {
+        return { state: "available", version: result.updateInfo.version || null };
+      }
+      return { state: updaterState.state === "downloaded" ? "downloaded" : "up-to-date", version: updaterState.version };
+    } catch (e) {
+      return { state: "error", version: null, error: String((e && e.message) || e) };
+    }
+  };
+  // Let the UI settle before the first background check.
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 20000);
+}
+
 app.setAppUserModelId("com.pehredar.desktop");
 
 // ---- CI smoke test ----
@@ -748,6 +815,7 @@ if (SMOKE_TEST) {
 
 app.whenReady().then(() => {
   createWindow();
+  setupAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
