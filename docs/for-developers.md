@@ -120,7 +120,25 @@ publishing any release that embeds the binary.
 
 ## Stalkerware DB (`pehredar/checks/stalkerware_db.json`)
 
-Manually curated snapshot of Coalition Against Stalkerware + TinyCheck indicators — exact package IDs plus family prefixes (package IDs rotate, so `com.mspy.`-style prefixes catch variants). To update: add/edit entries (`package`, `match: exact|prefix`, `label`, `source`, `severity`, `note`), then run `pytest tests/test_stalkerware_db.py`. Exact-match-only is used for generic disguise names (`com.android.system.service`) to avoid false positives — always cross-check with the hidden-app + permissions checks before removal.
+Versioned envelope (`version` / `updated` / `source` / `entries`) holding a
+manually curated snapshot of Coalition Against Stalkerware + TinyCheck
+indicators — exact package IDs plus family prefixes (package IDs rotate, so
+`com.mspy.`-style prefixes catch variants). Exact-match-only is used for
+generic disguise names (`com.android.system.service`) to avoid false
+positives — always cross-check with the hidden-app + permissions checks
+before removal.
+
+```bash
+python scripts/update_stalkerware_db.py --check                  # freshness report (exit 2 when stale)
+python scripts/update_stalkerware_db.py --merge curator-new.json # merge a curator list, bump version + date
+pytest tests/test_stalkerware_db.py
+```
+
+Update workflow: review upstream IOCs (~quarterly — CI emits a warning past
+90 days), export additions as a JSON list with the same entry schema
+(`package`, `match: exact|prefix`, `label`, `source`, `severity`, `note`),
+`--merge` them in (de-duped, validated, version bumped). Scan evidence
+carries the DB version (`[db vN]`) so reports stay attributable.
 
 ## Scan diffing (`pehredar/diff.py` + `pehredar-diff`)
 

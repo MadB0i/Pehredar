@@ -1,27 +1,207 @@
-[
-  {"package": "com.mspy.basic", "match": "exact", "label": "mSpy", "source": "TinyCheck/CAS", "severity": "high", "note": "Commercial spyware, hides icon, exfiltrates SMS/location."},
-  {"package": "com.mspy.", "match": "prefix", "label": "mSpy family", "source": "TinyCheck/CAS", "severity": "high", "note": "mSpy package variants share this prefix."},
-  {"package": "com.flexispy.android", "match": "exact", "label": "FlexiSPY", "source": "TinyCheck/CAS", "severity": "high", "note": "Full-access stalkerware with call interception."},
-  {"package": "com.flexispy.", "match": "prefix", "label": "FlexiSPY family", "source": "TinyCheck/CAS", "severity": "high", "note": "FlexiSPY variants."},
-  {"package": "com.hoverwatch.android", "match": "exact", "label": "Hoverwatch", "source": "TinyCheck/CAS", "severity": "high", "note": "Hidden tracker, SMS/call/GPS logging."},
-  {"package": "com.hoverwatch.", "match": "prefix", "label": "Hoverwatch family", "source": "TinyCheck/CAS", "severity": "high", "note": "Hoverwatch variants."},
-  {"package": "com.spyic.", "match": "prefix", "label": "Spyic family", "source": "CAS", "severity": "high", "note": "Spyic/Cocospy shared backend."},
-  {"package": "com.cocospy.", "match": "prefix", "label": "Cocospy family", "source": "CAS", "severity": "high", "note": "Cocospy variants."},
-  {"package": "com.thetruthspy.", "match": "prefix", "label": "TheTruthSpy family", "source": "TinyCheck/CAS", "severity": "high", "note": "TheTruthSpy hides as system update."},
-  {"package": "com.truthspy.", "match": "prefix", "label": "TruthSpy variant", "source": "TinyCheck", "severity": "high", "note": "Alias of TheTruthSpy."},
-  {"package": "com.spyhuman.", "match": "prefix", "label": "SpyHuman family", "source": "TinyCheck/CAS", "severity": "high", "note": "SpyHuman call/SMS tracker."},
-  {"package": "com.spytrack.", "match": "prefix", "label": "MobileTracker variant", "source": "TinyCheck", "severity": "high", "note": "Repackaged tracker builds."},
-  {"package": "com.highstermobile.", "match": "prefix", "label": "Highster Mobile family", "source": "CAS", "severity": "high", "note": "Highster stalkerware builds."},
-  {"package": "com.spyzie.", "match": "prefix", "label": "Spyzie family", "source": "CAS", "severity": "high", "note": "Spyzie monitoring builds."},
-  {"package": "com.xnspy.", "match": "prefix", "label": "XNSPY family", "source": "CAS", "severity": "high", "note": "XNSPY variants."},
-  {"package": "com.spyera.", "match": "prefix", "label": "Spyera family", "source": "TinyCheck/CAS", "severity": "high", "note": "Spyera remote monitoring."},
-  {"package": "com.mobistealth.", "match": "prefix", "label": "Mobistealth family", "source": "CAS", "severity": "high", "note": "Mobistealth variants."},
-  {"package": "com.ikeymonitor.", "match": "prefix", "label": "iKeyMonitor family", "source": "CAS", "severity": "high", "note": "Keylogger marketed for couples/parents, abused for stalking."},
-  {"package": "com.lsdroid.cerberus", "match": "exact", "label": "Cerberus", "source": "TinyCheck", "severity": "high", "note": "Dual-use theft-recovery app frequently abused as stalkerware; verify with owner."},
-  {"package": "com.reptilicus.", "match": "prefix", "label": "Reptilicus family", "source": "CAS", "severity": "high", "note": "Reptilicus tracker builds."},
-  {"package": "com.kidlogger.", "match": "prefix", "label": "KidLogger family", "source": "CAS", "severity": "medium", "note": "Dual-use parental logger; flag only with other indicators."},
-  {"package": "com.tinytrack.", "match": "prefix", "label": "TinyTrack variant", "source": "TinyCheck", "severity": "high", "note": "Lightweight hidden tracker builds."},
-  {"package": "com.systemupdate.service", "match": "exact", "label": "Fake SystemUpdate dropper", "source": "TinyCheck", "severity": "high", "note": "Common stalkerware disguise name; verify before removal."},
-  {"package": "com.android.system.service", "match": "exact", "label": "Fake system-service dropper", "source": "TinyCheck", "severity": "high", "note": "Exact-match only: real system packages never use this ID as a third-party app; cross-check with hidden-app + permissions checks."},
-  {"package": "com.secure.system", "match": "exact", "label": "Fake Secure System dropper", "source": "TinyCheck", "severity": "high", "note": "Stalkerware disguise name."}
-]
+{
+  "version": 1,
+  "updated": "2026-09-23",
+  "source": "Coalition Against Stalkerware + TinyCheck IOCs (manually curated snapshot)",
+  "entries": [
+    {
+      "package": "com.mspy.basic",
+      "match": "exact",
+      "label": "mSpy",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "Commercial spyware, hides icon, exfiltrates SMS/location."
+    },
+    {
+      "package": "com.mspy.",
+      "match": "prefix",
+      "label": "mSpy family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "mSpy package variants share this prefix."
+    },
+    {
+      "package": "com.flexispy.android",
+      "match": "exact",
+      "label": "FlexiSPY",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "Full-access stalkerware with call interception."
+    },
+    {
+      "package": "com.flexispy.",
+      "match": "prefix",
+      "label": "FlexiSPY family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "FlexiSPY variants."
+    },
+    {
+      "package": "com.hoverwatch.android",
+      "match": "exact",
+      "label": "Hoverwatch",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "Hidden tracker, SMS/call/GPS logging."
+    },
+    {
+      "package": "com.hoverwatch.",
+      "match": "prefix",
+      "label": "Hoverwatch family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "Hoverwatch variants."
+    },
+    {
+      "package": "com.spyic.",
+      "match": "prefix",
+      "label": "Spyic family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Spyic/Cocospy shared backend."
+    },
+    {
+      "package": "com.cocospy.",
+      "match": "prefix",
+      "label": "Cocospy family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Cocospy variants."
+    },
+    {
+      "package": "com.thetruthspy.",
+      "match": "prefix",
+      "label": "TheTruthSpy family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "TheTruthSpy hides as system update."
+    },
+    {
+      "package": "com.truthspy.",
+      "match": "prefix",
+      "label": "TruthSpy variant",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Alias of TheTruthSpy."
+    },
+    {
+      "package": "com.spyhuman.",
+      "match": "prefix",
+      "label": "SpyHuman family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "SpyHuman call/SMS tracker."
+    },
+    {
+      "package": "com.spytrack.",
+      "match": "prefix",
+      "label": "MobileTracker variant",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Repackaged tracker builds."
+    },
+    {
+      "package": "com.highstermobile.",
+      "match": "prefix",
+      "label": "Highster Mobile family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Highster stalkerware builds."
+    },
+    {
+      "package": "com.spyzie.",
+      "match": "prefix",
+      "label": "Spyzie family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Spyzie monitoring builds."
+    },
+    {
+      "package": "com.xnspy.",
+      "match": "prefix",
+      "label": "XNSPY family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "XNSPY variants."
+    },
+    {
+      "package": "com.spyera.",
+      "match": "prefix",
+      "label": "Spyera family",
+      "source": "TinyCheck/CAS",
+      "severity": "high",
+      "note": "Spyera remote monitoring."
+    },
+    {
+      "package": "com.mobistealth.",
+      "match": "prefix",
+      "label": "Mobistealth family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Mobistealth variants."
+    },
+    {
+      "package": "com.ikeymonitor.",
+      "match": "prefix",
+      "label": "iKeyMonitor family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Keylogger marketed for couples/parents, abused for stalking."
+    },
+    {
+      "package": "com.lsdroid.cerberus",
+      "match": "exact",
+      "label": "Cerberus",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Dual-use theft-recovery app frequently abused as stalkerware; verify with owner."
+    },
+    {
+      "package": "com.reptilicus.",
+      "match": "prefix",
+      "label": "Reptilicus family",
+      "source": "CAS",
+      "severity": "high",
+      "note": "Reptilicus tracker builds."
+    },
+    {
+      "package": "com.kidlogger.",
+      "match": "prefix",
+      "label": "KidLogger family",
+      "source": "CAS",
+      "severity": "medium",
+      "note": "Dual-use parental logger; flag only with other indicators."
+    },
+    {
+      "package": "com.tinytrack.",
+      "match": "prefix",
+      "label": "TinyTrack variant",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Lightweight hidden tracker builds."
+    },
+    {
+      "package": "com.systemupdate.service",
+      "match": "exact",
+      "label": "Fake SystemUpdate dropper",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Common stalkerware disguise name; verify before removal."
+    },
+    {
+      "package": "com.android.system.service",
+      "match": "exact",
+      "label": "Fake system-service dropper",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Exact-match only: real system packages never use this ID as a third-party app; cross-check with hidden-app + permissions checks."
+    },
+    {
+      "package": "com.secure.system",
+      "match": "exact",
+      "label": "Fake Secure System dropper",
+      "source": "TinyCheck",
+      "severity": "high",
+      "note": "Stalkerware disguise name."
+    }
+  ]
+}

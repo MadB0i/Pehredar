@@ -32,6 +32,12 @@ jobs:
       - name: Run tests with pytest
         run: pytest tests/ -q
 
+      - name: Stalkerware DB freshness (warning only)
+        # Never blocks the build — a stale DB just means a curator should
+        # review upstream IOCs and run scripts/update_stalkerware_db.py.
+        run: |
+          python scripts/update_stalkerware_db.py --check --max-age-days 90 || echo "::warning::Stalkerware indicator DB is stale — review upstream IOCs"
+
   gui-smoke:
     name: GUI boot smoke (Electron, headless)
     runs-on: ubuntu-latest
