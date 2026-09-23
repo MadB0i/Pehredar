@@ -8,9 +8,9 @@
     el.innerHTML =
       '<div class="dash-grid">' +
       '<div class="stats-row">' +
-      '<div class="card stat-card"><div class="stat-label">Total Scans</div><div class="stat-value mono" id="stat-total">0</div></div>' +
-      '<div class="card stat-card"><div class="stat-label">Most Common Risk</div><div class="stat-value" id="stat-risk">—</div></div>' +
-      '<div class="card stat-card"><div class="stat-label">Last Scan</div><div class="stat-value mono" id="stat-last">—</div></div>' +
+      '<div class="card stat-card"><div class="stat-label">Total Scans</div><div class="stat-value mono" id="stat-total"><span class="skeleton-bar" style="display:block;height:22px"></span></div></div>' +
+      '<div class="card stat-card"><div class="stat-label">Most Common Risk</div><div class="stat-value" id="stat-risk"><span class="skeleton-bar" style="display:block;height:22px"></span></div></div>' +
+      '<div class="card stat-card"><div class="stat-label">Last Scan</div><div class="stat-value mono" id="stat-last"><span class="skeleton-bar" style="display:block;height:20px"></span></div></div>' +
       "</div>" +
       '<div class="card device-card" id="dash-device-card">' +
       '<div class="card-title">DEVICE</div>' +
@@ -26,7 +26,11 @@
       '<div class="device-prop"><span class="plabel">Status</span><span class="pval" id="dash-device-status">offline</span></div>' +
       "</div>" +
       "</div>" +
-      '<div id="dash-scan-slot"></div>' +
+      '<div id="dash-scan-slot">' +
+      '<div class="card lastscan-card"><div class="card-title">LAST SCAN</div>' +
+      '<div class="device-skel"><span class="skeleton-bar" style="height:20px;width:40%"></span>' +
+      '<span class="skeleton-bar" style="height:12px;width:70%"></span></div></div>' +
+      "</div>" +
       '<div class="card checks-overview">' +
       '<div class="card-title">CHECKS OVERVIEW</div>' +
       '<div class="checks-groups" id="dash-checks-groups"></div>' +
@@ -183,6 +187,10 @@
       const labels = ordered.map((s) => window.Components.fmtTime(s.timestamp).slice(5));
       box.innerHTML = '<canvas id="dash-chart"></canvas>';
       const ctx = box.querySelector("#dash-chart").getContext("2d");
+      // Chart.js animates draws by default; freeze that under
+      // reduced-motion (data still renders, instantly).
+      const reduceMotion =
+        window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       chart = new Chart(ctx, {
         type: "line",
         data: {
@@ -203,6 +211,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: reduceMotion ? false : undefined,
           plugins: {
             legend: { display: false },
             tooltip: {

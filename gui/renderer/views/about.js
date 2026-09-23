@@ -11,7 +11,7 @@
       '<div class="card about-card">' +
       '<div class="about-mark">' + window.brandIcon(72) + "</div>" +
       '<div class="about-name">PEHREDAR</div>' +
-      '<div class="about-desc">On-device Android root & spyware detection agent. Runs 11 live checks over ADB — root binaries, build tampering, accessibility abuse, device admin, hidden apps and more — then scores device risk through a weighted pass/fail engine.</div>' +
+      '<div class="about-desc">On-device Android root & spyware detection agent. Runs 12 live checks over ADB — root binaries, build tampering, accessibility abuse, device admin, hidden apps and more — then scores device risk through a weighted pass/fail engine.</div>' +
       '<div class="about-meta mono">v1.0.0 · Electron + Python</div>' +
       "</div>" +
 
@@ -20,7 +20,7 @@
       '<div class="card-title">HOW IT WORKS</div>' +
       '<div class="steps">' +
       step(0, "usb", "1", "Connect via ADB", "Plug in the device with USB debugging enabled. Pehredar polls adb devices and picks the authorized device automatically.") +
-      step(1, "scan", "2", "Run 11 automated checks", "A live network graph shows each check as it runs — su binaries, root managers, Magisk traces, hidden apps, accessibility and device-admin spies.") +
+      step(1, "scan", "2", "Run 12 automated checks", "A live network graph shows each check as it runs — su binaries, root managers, Magisk traces, hidden apps, accessibility and device-admin spies.") +
       step(2, "dashboard", "3", "Get a scored report", "Results are scored into a Low / Medium / High risk verdict with per-check evidence, saved to history, and exportable as a printable HTML report.") +
       "</div>" +
       "</div>" +

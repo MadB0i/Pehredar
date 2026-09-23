@@ -27,29 +27,23 @@ def test_platform_dir_mapping():
 
 
 def test_binary_names_per_platform():
-    assert bundled.core_binary_name("win", "scan") == "pehredar-core.exe"
-    assert bundled.core_binary_name("win", "agent") == "pehredar-agent-core.exe"
-    assert bundled.core_binary_name("linux", "scan") == "pehredar-core"
-    assert bundled.core_binary_name("linux", "agent") == "pehredar-agent-core"
+    assert bundled.core_binary_name("win") == "pehredar-core.exe"
+    assert bundled.core_binary_name("linux") == "pehredar-core"
     assert bundled.adb_binary_name("win") == "adb.exe"
     assert bundled.adb_binary_name("linux") == "adb"
-    assert bundled.fastboot_binary_name("win") == "fastboot.exe"
-    assert bundled.fastboot_binary_name("linux") == "fastboot"
 
 
 def test_bundled_paths_layout_win():
     base = "C:\\Program Files\\Pehredar\\resources"
     assert bundled.bundled_bin_dir(base, "win32") == os.path.join(base, "bin", "win")
-    assert bundled.bundled_core_path(base, "win32", "scan").endswith("pehredar-core.exe")
-    assert bundled.bundled_core_path(base, "win32", "agent").endswith("pehredar-agent-core.exe")
+    assert bundled.bundled_core_path(base, "win32").endswith("pehredar-core.exe")
     assert bundled.bundled_adb_path(base, "win32").endswith("adb.exe")
-    assert bundled.bundled_fastboot_path(base, "win32").endswith("fastboot.exe")
 
 
 def test_bundled_paths_layout_linux():
     base = "/opt/Pehredar/resources"
     assert bundled.bundled_bin_dir(base, "linux") == os.path.join(base, "bin", "linux")
-    assert bundled.bundled_core_path(base, "linux", "scan") == os.path.join(
+    assert bundled.bundled_core_path(base, "linux") == os.path.join(
         base, "bin", "linux", "pehredar-core"
     )
     assert bundled.bundled_adb_path(base, "linux") == os.path.join(base, "bin", "linux", "adb")
@@ -62,20 +56,11 @@ def test_unsupported_platform_returns_none():
 
 
 def test_dev_fallback_uses_system_python_and_path_adb():
-    res = bundled.resolve_launch(
-        is_packaged=False, resources_path="/x", platform="win32", kind="scan"
-    )
+    res = bundled.resolve_launch(is_packaged=False, resources_path="/x", platform="win32")
     assert res["mode"] == "dev"
     assert res["error"] is None
     assert res["args_prefix"] == ["-m", "pehredar.cli"]
     assert res["adb_path"] == "adb"
-
-
-def test_dev_fallback_agent_module():
-    res = bundled.resolve_launch(
-        is_packaged=False, resources_path="/x", platform="linux", kind="agent"
-    )
-    assert res["args_prefix"] == ["-m", "pehredar.agent_cli"]
 
 
 def test_dev_respects_settings_adb_override():
@@ -93,7 +78,6 @@ def test_packaged_picks_bundled_binaries():
         is_packaged=True,
         resources_path="/res",
         platform="win32",
-        kind="scan",
         exists=_exists_everything,
     )
     assert res["mode"] == "bundled"
@@ -101,18 +85,6 @@ def test_packaged_picks_bundled_binaries():
     assert res["command"] == os.path.join("/res", "bin", "win", "pehredar-core.exe")
     assert res["args_prefix"] == []
     assert res["adb_path"] == os.path.join("/res", "bin", "win", "adb.exe")
-
-
-def test_packaged_agent_binary():
-    res = bundled.resolve_launch(
-        is_packaged=True,
-        resources_path="/res",
-        platform="linux",
-        kind="agent",
-        exists=_exists_everything,
-    )
-    assert res["command"] == os.path.join("/res", "bin", "linux", "pehredar-agent-core")
-    assert res["error"] is None
 
 
 def test_packaged_missing_core_is_clear_error_not_crash():
@@ -180,18 +152,18 @@ def test_js_mirror_stays_in_sync():
         "platformDir",
         "coreFileName",
         "adbFileName",
-        "fastbootFileName",
         "binDir",
         "bundledCorePath",
         "bundledAdbPath",
-        "bundledFastbootPath",
         "resolveLaunch",
         "pehredar-core",
-        "pehredar-agent-core",
     ]:
         assert symbol in js, f"JS mirror missing: {symbol}"
     # error-wording parity so users get the same guidance on both sides
     assert "Reinstall Pehredar" in js
+    # no removed surface may drift back in on either side
+    for gone in ["pehredar-agent-core", "agent_cli", "fastbootFileName", "bundledFastbootPath"]:
+        assert gone not in js, f"JS mirror still references removed surface: {gone}"
 
 
 def test_meipass_db_fallback_paths(monkeypatch, tmp_path):
@@ -220,13 +192,11 @@ def test_real_built_bundle_resolves():
     dir_name = "win" if sys.platform == "win32" else "linux"
     plat = "win32" if sys.platform == "win32" else "linux"
     resources = Path(__file__).resolve().parent.parent / "gui" / "resources"
-    core = resources / "bin" / dir_name / bundled.core_binary_name(dir_name, "scan")
+    core = resources / "bin" / dir_name / bundled.core_binary_name(dir_name)
     adb = resources / "bin" / dir_name / bundled.adb_binary_name(dir_name)
     if not (core.exists() and adb.exists()):
         pytest.skip("no built bundle")
-    res = bundled.resolve_launch(
-        is_packaged=True, resources_path=str(resources), platform=plat, kind="scan"
-    )
+    res = bundled.resolve_launch(is_packaged=True, resources_path=str(resources), platform=plat)
     assert res["error"] is None
     assert res["command"] == str(core)
     assert res["adb_path"] == str(adb)

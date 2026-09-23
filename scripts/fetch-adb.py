@@ -1,4 +1,4 @@
-"""Fetch adb (+fastboot and required libs) without committing binaries to git.
+"""Fetch adb (and required libs) without committing binaries to git.
 
 Downloads the official Android SDK Platform Tools zip for the target
 platform, extracts only the needed files, and places them in
@@ -47,14 +47,12 @@ PLATFORMS = {
             "platform-tools/adb.exe": "adb.exe",
             "platform-tools/AdbWinApi.dll": "AdbWinApi.dll",
             "platform-tools/AdbWinUsbApi.dll": "AdbWinUsbApi.dll",
-            "platform-tools/fastboot.exe": "fastboot.exe",
         },
     ),
     "linux": (
         "platform-tools-latest-linux.zip",
         {
             "platform-tools/adb": "adb",
-            "platform-tools/fastboot": "fastboot",
         },
     ),
 }
@@ -104,7 +102,7 @@ def fetch_one(platform_dir: str, out_root: Path) -> list[Path]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch adb/fastboot binaries for bundling.")
+    parser = argparse.ArgumentParser(description="Fetch adb binaries for bundling.")
     parser.add_argument("--platform", choices=["win", "linux", "all", "auto"], default="auto")
     parser.add_argument("--out", default=str(BIN_ROOT), help="Bin root (default: gui/resources/bin)")
     args = parser.parse_args()

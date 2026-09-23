@@ -1,7 +1,6 @@
-"""Build the Pehredar Python core as standalone PyInstaller binaries.
+"""Build the Pehredar Python core as a standalone PyInstaller binary.
 
-Produces ``pehredar-core(.exe)`` (scan CLI) and
-``pehredar-agent-core(.exe)`` (agent CLI) into
+Produces ``pehredar-core(.exe)`` (scan CLI) in
 ``gui/resources/bin/<win|linux>/`` so the Electron installer ships zero
 external dependencies (no system Python needed).
 
@@ -36,7 +35,6 @@ GUI_BIN_ROOT = REPO_ROOT / "gui" / "resources" / "bin"
 
 ENTRIES = (
     ("pehredar.cli", "main", "pehredar-core"),
-    ("pehredar.agent_cli", "main", "pehredar-agent-core"),
 )
 
 DB_SRC = REPO_ROOT / "pehredar" / "checks" / "stalkerware_db.json"

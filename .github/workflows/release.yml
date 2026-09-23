@@ -56,7 +56,6 @@ jobs:
         working-directory: gui
         run: |
           & ./resources/bin/win/pehredar-core.exe --version
-          & ./resources/bin/win/pehredar-agent-core.exe --version
           & ./resources/bin/win/adb.exe version
 
       - name: Build Windows NSIS installer
@@ -123,7 +122,6 @@ jobs:
       - name: Smoke-test bundled core
         run: |
           ./resources/bin/linux/pehredar-core --version
-          ./resources/bin/linux/pehredar-agent-core --version
           ./resources/bin/linux/adb version
         working-directory: gui
 
@@ -183,6 +181,6 @@ jobs:
             - Linux: `Pehredar-*.AppImage` (`chmod +x` then run)
 
             > Note: installers are currently **unsigned**. Windows will show an "Unknown publisher" warning. Verify the SHA256 checksum before running.
-            > The installer embeds adb/fastboot built from the Apache-2.0-licensed AOSP sources — see NOTICE-THIRD-PARTY.md for the licensing basis.
+            > The installer embeds adb built from the Apache-2.0-licensed AOSP sources — see NOTICE-THIRD-PARTY.md for the licensing basis.
           draft: false
           prerelease: false

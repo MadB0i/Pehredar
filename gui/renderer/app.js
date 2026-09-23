@@ -1,13 +1,12 @@
 (function () {
   "use strict";
 
-  const VIEWS = ["dashboard", "scan", "history", "settings", "advanced", "about"];
+  const VIEWS = ["dashboard", "scan", "history", "settings", "about"];
   const TITLES = {
     dashboard: "Dashboard",
     scan: "Scan",
     history: "History",
     settings: "Settings",
-    advanced: "Advanced",
     about: "About",
   };
 

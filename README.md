@@ -26,7 +26,7 @@ install, plug in your phone with USB Debugging on, and click Scan.
 - Windows: `Pehredar-*-win-*.exe` (unsigned — accept the SmartScreen prompt, verify `SHA256SUMS.txt`)
 - Linux: `Pehredar-*-linux-*.AppImage` (`chmod +x`, then run)
 
-The installer embeds Google's Android SDK Platform Tools (adb/fastboot) —
+The installer embeds Google's Android Debug Bridge (adb) —
 see [NOTICE-THIRD-PARTY.md](NOTICE-THIRD-PARTY.md) for the license note.
 
 ## Quick Start (from source — Python + adb required)

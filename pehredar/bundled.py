@@ -19,7 +19,6 @@ import os
 from collections.abc import Callable
 
 CORE_SCAN_BASENAME = "pehredar-core"
-CORE_AGENT_BASENAME = "pehredar-agent-core"
 
 #: Electron ``process.platform`` -> bundled ``bin/<dir>`` segment.
 PLATFORM_DIR_MAP = {
@@ -33,20 +32,14 @@ def platform_dir(platform: str) -> str | None:
     return PLATFORM_DIR_MAP.get(platform)
 
 
-def core_binary_name(dir_name: str, kind: str = "scan") -> str:
+def core_binary_name(dir_name: str) -> str:
     """File name of the bundled core binary for a platform dir."""
-    base = CORE_AGENT_BASENAME if kind == "agent" else CORE_SCAN_BASENAME
-    return base + ".exe" if dir_name == "win" else base
+    return CORE_SCAN_BASENAME + (".exe" if dir_name == "win" else "")
 
 
 def adb_binary_name(dir_name: str) -> str:
     """File name of the bundled adb binary for a platform dir."""
     return "adb.exe" if dir_name == "win" else "adb"
-
-
-def fastboot_binary_name(dir_name: str) -> str:
-    """File name of the bundled fastboot binary for a platform dir."""
-    return "fastboot.exe" if dir_name == "win" else "fastboot"
 
 
 def bundled_bin_dir(resources_path: str, platform: str) -> str | None:
@@ -57,13 +50,13 @@ def bundled_bin_dir(resources_path: str, platform: str) -> str | None:
     return os.path.join(resources_path, "bin", dir_name)
 
 
-def bundled_core_path(resources_path: str, platform: str, kind: str = "scan") -> str | None:
+def bundled_core_path(resources_path: str, platform: str) -> str | None:
     """Absolute path of the bundled core binary, or ``None`` if unsupported."""
     bin_dir = bundled_bin_dir(resources_path, platform)
     if bin_dir is None:
         return None
     dir_name = platform_dir(platform) or ""
-    return os.path.join(bin_dir, core_binary_name(dir_name, kind))
+    return os.path.join(bin_dir, core_binary_name(dir_name))
 
 
 def bundled_adb_path(resources_path: str, platform: str) -> str | None:
@@ -75,21 +68,11 @@ def bundled_adb_path(resources_path: str, platform: str) -> str | None:
     return os.path.join(bin_dir, adb_binary_name(dir_name))
 
 
-def bundled_fastboot_path(resources_path: str, platform: str) -> str | None:
-    """Absolute path of the bundled fastboot binary, or ``None`` if unsupported."""
-    bin_dir = bundled_bin_dir(resources_path, platform)
-    if bin_dir is None:
-        return None
-    dir_name = platform_dir(platform) or ""
-    return os.path.join(bin_dir, fastboot_binary_name(dir_name))
-
-
 def resolve_launch(
     *,
     is_packaged: bool,
     resources_path: str,
     platform: str,
-    kind: str = "scan",
     settings_adb_path: str | None = None,
     exists: Callable[[str], bool] = os.path.exists,
 ) -> dict:
@@ -107,7 +90,7 @@ def resolve_launch(
         return {
             "mode": "dev",
             "command": "python-fallback",
-            "args_prefix": ["-m", "pehredar.agent_cli" if kind == "agent" else "pehredar.cli"],
+            "args_prefix": ["-m", "pehredar.cli"],
             "adb_path": custom_adb or "adb",
             "error": None,
         }
@@ -126,7 +109,7 @@ def resolve_launch(
             ),
         }
 
-    core = bundled_core_path(resources_path, platform, kind)
+    core = bundled_core_path(resources_path, platform)
     assert core is not None  # guaranteed by the dir_name check above
     if not exists(core):
         return {

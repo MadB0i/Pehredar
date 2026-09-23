@@ -25,6 +25,11 @@
   transition-duration: var(--duration-panel);
 }
 
+/* ---- detail overlay: same crossfade token as tab navigation ---- */
+.overlay {
+  transition-duration: var(--duration-panel);
+}
+
 /* ---- scan checklist: live per-check states, event-driven ---- */
 .checklist {
   display: flex;
@@ -136,7 +141,6 @@
 .device-skel { display: flex; flex-direction: column; gap: var(--s3); }
 
 /* ---- device connect: one-shot ping on first detection ---- */
-.device-chip { position: relative; }
 .device-chip.connect-ping .conn-dot::after {
   content: "";
   position: absolute;
@@ -153,6 +157,38 @@
 @keyframes connect-ping {
   from { transform: scale(0.4); opacity: 1; }
   to { transform: scale(1.5); opacity: 0; }
+}
+
+/* ============================================================
+   Live scan: one signature treatment — a slow radar sweep over the
+   graph, visible only while a scan is actually running (.is-scanning
+   is added/removed by scan.js on backend start/stop events).
+   Everything else on this screen stays calm: no scanlines, no extra
+   bars, no staggered entrances.
+   ============================================================ */
+.graph-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-panel) var(--ease-enter);
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(var(--accent-rgb), 0) 290deg,
+    rgba(var(--accent-rgb), 0.22) 350deg,
+    rgba(var(--accent-rgb), 0.45) 360deg
+  );
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 0%, #000 52%, transparent 70%);
+  mask: radial-gradient(circle at 50% 50%, #000 0%, #000 52%, transparent 70%);
+  animation: radar-spin 4s linear infinite;
+}
+.graph-card.is-scanning .graph-wrap::before {
+  opacity: 1;
+}
+@keyframes radar-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================================

@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Removed the Advanced/Root Agent feature — out of scope for this tool's detection-focused positioning.
+
+### Changed
+- UI consistency pass: dashboard stat/last-scan skeletons, Checks Overview rows in the checklist's visual language, exact-shape history skeletons, detail-overlay crossfade on the standard token, Settings focus treatment aligned, Chart.js animation disabled under reduced-motion.
+
 ### Fixed
 - **Packaged launch crash**: `scripts/bundled-paths.js` was missing from `app.asar` (`build.files` only listed `main.js`/`preload.js`/`assets`/`renderer`), so every production launch died with "Cannot find module './scripts/bundled-paths'". Now explicitly packaged, with a `tests/test_packaging.py` guard that fails if any runtime `require()` in `main.js` is not covered by `build.files`.
 
 ### Added
-- **Purposeful motion design** (`gui/renderer/motion-tokens.css`): duration/easing tokens (120/240/360ms, ease-out entrances, ease-in exits), event-driven 12-row scan checklist (pending → running → pass/fail, skipped aware, desync-proof), risk reveal (panel rise, badge pop, 350ms count-up, calm HIGH pulse), crossfade tab navigation, shape-matched skeleton placeholders, one-shot device-connect ping. Global `prefers-reduced-motion` guard collapses everything to instant state changes.
+- **Purposeful motion design** (`gui/renderer/motion-tokens.css`): duration/easing tokens (120/240/360ms, ease-out entrances, ease-in exits), event-driven 12-row scan checklist (pending → running → pass/fail, skipped aware, desync-proof), risk reveal (panel rise, badge pop, 350ms count-up, calm HIGH pulse), crossfade tab navigation, shape-matched skeleton placeholders, one-shot device-connect ping. Live scan view: a slow radar sweep over the check network, visible only while a scan is actually running. Global `prefers-reduced-motion` guard collapses everything to instant state changes.
 - **Missing 12th check wired into GUI**: `check_known_stalkerware` added to `CHECK_CATALOG` and the scan graph (previously silently ignored by both).
 - Documented licensing basis for bundled adb/fastboot binaries (Apache 2.0, AOSP-sourced).
 - **Zero-dependency installer**: `scripts/build_core.py` (PyInstaller `--onefile` → `pehredar-core(.exe)` + `pehredar-agent-core(.exe)` in `gui/resources/bin/<win|linux>/`) and `scripts/fetch-adb.py` (official platform-tools zip → bundled `adb`/`fastboot` + Windows DLLs, never committed to git). `gui/main.js` uses the bundle when `app.isPackaged` and falls back to system `python`/`adb` in dev; missing binaries or unsupported platforms produce an explicit in-app error instead of a silent crash. `release.yml` now fetches, builds, and smoke-tests (`--version` + `adb version`) before packaging. `NOTICE-THIRD-PARTY.md` records the licensing basis (Apache 2.0, AOSP-sourced, scrcpy precedent).

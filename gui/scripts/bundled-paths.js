@@ -2,8 +2,8 @@
 // Bundled-binary path resolution for the packaged app.
 //
 // Shared contract with pehredar/bundled.py (Python mirror used by the build
-// scripts and pytest): <resources>/bin/<win|linux>/ holds pehredar-core,
-// pehredar-agent-core and adb/fastboot. Keep the two in sync.
+// scripts and pytest): <resources>/bin/<win|linux>/ holds pehredar-core
+// and adb. Keep the two in sync.
 //
 // This module is pure (no electron dependency) so the platform mapping is
 // mockable: pass explicit `platform` ("win32"/"linux"/...) and an `exists`
@@ -12,7 +12,6 @@
 const path = require("path");
 
 const CORE_SCAN_BASENAME = "pehredar-core";
-const CORE_AGENT_BASENAME = "pehredar-agent-core";
 
 function platformDir(platform) {
   if (platform === "win32") return "win";
@@ -20,17 +19,12 @@ function platformDir(platform) {
   return null;
 }
 
-function coreFileName(dirName, kind) {
-  const base = kind === "agent" ? CORE_AGENT_BASENAME : CORE_SCAN_BASENAME;
-  return dirName === "win" ? `${base}.exe` : base;
+function coreFileName(dirName) {
+  return dirName === "win" ? `${CORE_SCAN_BASENAME}.exe` : CORE_SCAN_BASENAME;
 }
 
 function adbFileName(dirName) {
   return dirName === "win" ? "adb.exe" : "adb";
-}
-
-function fastbootFileName(dirName) {
-  return dirName === "win" ? "fastboot.exe" : "fastboot";
 }
 
 function binDir(resourcesPath, platform) {
@@ -38,22 +32,16 @@ function binDir(resourcesPath, platform) {
   return dir ? path.join(resourcesPath, "bin", dir) : null;
 }
 
-function bundledCorePath(resourcesPath, platform, kind) {
+function bundledCorePath(resourcesPath, platform) {
   const dir = binDir(resourcesPath, platform);
   if (!dir) return null;
-  return path.join(dir, coreFileName(platformDir(platform), kind || "scan"));
+  return path.join(dir, coreFileName(platformDir(platform)));
 }
 
 function bundledAdbPath(resourcesPath, platform) {
   const dir = binDir(resourcesPath, platform);
   if (!dir) return null;
   return path.join(dir, adbFileName(platformDir(platform)));
-}
-
-function bundledFastbootPath(resourcesPath, platform) {
-  const dir = binDir(resourcesPath, platform);
-  if (!dir) return null;
-  return path.join(dir, fastbootFileName(platformDir(platform)));
 }
 
 function missingCoreError(corePath) {
@@ -88,11 +76,10 @@ function resolveLaunch(opts) {
     isPackaged,
     resourcesPath,
     platform,
-    kind,
     settingsAdbPath,
     exists,
   } = Object.assign(
-    { kind: "scan", settingsAdbPath: "", exists: fs.existsSync },
+    { settingsAdbPath: "", exists: fs.existsSync },
     opts || {}
   );
   const customAdb = (settingsAdbPath || "").trim();
@@ -101,7 +88,7 @@ function resolveLaunch(opts) {
     return {
       mode: "dev",
       command: null, // caller uses pythonCommand()
-      argsPrefix: ["-m", kind === "agent" ? "pehredar.agent_cli" : "pehredar.cli"],
+      argsPrefix: ["-m", "pehredar.cli"],
       adbPath: customAdb || "adb",
       error: null,
     };
@@ -117,7 +104,7 @@ function resolveLaunch(opts) {
     };
   }
 
-  const core = bundledCorePath(resourcesPath, platform, kind);
+  const core = bundledCorePath(resourcesPath, platform);
   if (!exists(core)) {
     return {
       mode: "bundled",
@@ -144,15 +131,12 @@ function resolveLaunch(opts) {
 
 module.exports = {
   CORE_SCAN_BASENAME,
-  CORE_AGENT_BASENAME,
   platformDir,
   coreFileName,
   adbFileName,
-  fastbootFileName,
   binDir,
   bundledCorePath,
   bundledAdbPath,
-  bundledFastbootPath,
   missingCoreError,
   missingAdbError,
   unsupportedPlatformError,

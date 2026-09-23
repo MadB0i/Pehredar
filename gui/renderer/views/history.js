@@ -27,6 +27,7 @@
         '<span class="skeleton-bar" style="flex:1;height:11px"></span>' +
         '<span class="skeleton-bar" style="flex:0 0 52px;height:20px;border-radius:10px"></span>' +
         '<span class="skeleton-bar" style="flex:0 0 40px;height:12px"></span>' +
+        '<span class="skeleton-bar" style="flex:0 0 10px;height:18px"></span>' +
         "</div>";
     }
     return html;

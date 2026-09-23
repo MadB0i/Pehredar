@@ -32,7 +32,6 @@ const DEFAULT_SETTINGS = {
   adbPath: "",
   accent: "cyan",
   simple: false,
-  agentMode: "temporary",
   checks: {
     categories: { root: true, spyware: true },
     enabled: {},
@@ -44,8 +43,6 @@ let devicePollTimer = null;
 let currentDeviceSerial = null;
 let currentDeviceModel = null;
 let scanProcess = null;
-let agentProcess = null;
-let pendingAgent = null;
 
 // ---- settings persistence ----
 function settingsFile() {
@@ -59,7 +56,6 @@ function getSettings() {
     if (saved.adbPath !== undefined) base.adbPath = saved.adbPath;
     if (saved.accent !== undefined) base.accent = saved.accent;
     if (saved.simple !== undefined) base.simple = saved.simple;
-    if (saved.agentMode !== undefined) base.agentMode = saved.agentMode;
     if (saved.checks) {
       if (saved.checks.categories) base.checks.categories = Object.assign({}, base.checks.categories, saved.checks.categories);
       if (saved.checks.enabled) base.checks.enabled = Object.assign({}, base.checks.enabled, saved.checks.enabled);
@@ -146,25 +142,18 @@ function pythonCommand() {
 
 // ---- bundled binaries (packaged app) ----
 // Dev (app.isPackaged === false) keeps the old behavior: system python
-// (`python -m pehredar.cli` / `pehredar.agent_cli`) and `adb` from PATH.
+// (`python -m pehredar.cli`) and `adb` from PATH.
 // Packaged builds use the standalone PyInstaller binaries plus adb from
 // <resources>/bin/<win|linux>/, so no Python or platform-tools install is
 // required. Paths may contain spaces (e.g. "C:\Program Files\...") —
 // spawn() with an args array handles that without shell quoting.
-function coreLaunch(kind) {
+function coreLaunch() {
   return bundledPaths.resolveLaunch({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
     platform: process.platform,
-    kind,
     settingsAdbPath: customAdbPath(),
   });
-}
-
-function packagedFastbootPath() {
-  if (!app.isPackaged) return null;
-  const p = bundledPaths.bundledFastbootPath(process.resourcesPath, process.platform);
-  return p && fs.existsSync(p) ? p : null;
 }
 
 function appIconPath() {
@@ -194,7 +183,6 @@ function createWindow() {
     mainWindow = null;
     stopDevicePolling();
     killScan();
-    killAgent();
   });
 }
 
@@ -262,7 +250,7 @@ function reportPath() {
 function startScan() {
   if (!currentDeviceSerial || scanProcess) return;
 
-  const launch = coreLaunch("scan");
+  const launch = coreLaunch();
   if (launch.error) {
     // Clear, actionable failure instead of a silent crash when the bundled
     // binary is missing or the platform is unsupported.
@@ -367,150 +355,6 @@ function killScan() {
       /* already dead */
     }
     scanProcess = null;
-  }
-}
-
-// ---- agent (root / lock recovery) ----
-function agentEvent(payload) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("agent-event", payload);
-  }
-}
-
-function agentWorkdir() {
-  return path.join(app.getPath("userData"), "agent-work");
-}
-
-// kind: "plan-root" | "run-root" | "plan-lock" | "run-lock"
-function runAgent(kind, opts) {
-  if (!currentDeviceSerial) return false;
-  if (agentProcess) {
-    // previous agent (e.g. a just-finished plan) is still shutting down —
-    // replace it so a quick Plan -> Run works instead of silently no-oping.
-    pendingAgent = { kind, opts };
-    try {
-      agentProcess.kill();
-    } catch {
-      /* already dead */
-    }
-    return true;
-  }
-  return spawnAgent(kind, opts);
-}
-
-function spawnAgent(kind, opts) {
-  const launch = coreLaunch("agent");
-  if (launch.error) {
-    agentEvent({ type: "error", error: launch.error });
-    return false;
-  }
-  const root = resolveProjectRoot();
-  const args = [...launch.argsPrefix, "-s", currentDeviceSerial, "--json-stream"];
-  if (launch.mode === "bundled") {
-    args.push("--adb-path", launch.adbPath);
-    const fb = packagedFastbootPath();
-    if (fb) args.push("--fastboot-path", fb);
-  } else if (customAdbPath()) {
-    args.push("--adb-path", customAdbPath());
-  }
-  args.push("--workdir", agentWorkdir());
-
-  // unlock secrets travel via temp files so they never appear in the process list
-  const tempFiles = [];
-  try {
-    if (opts && opts.pin) {
-      const f = path.join(app.getPath("temp"), `pehredar-pin-${process.pid}.txt`);
-      fs.writeFileSync(f, String(opts.pin), "utf8");
-      tempFiles.push(f);
-      args.push("--unlock-pin-file", f);
-    }
-    if (opts && opts.pattern) {
-      const f = path.join(app.getPath("temp"), `pehredar-pat-${process.pid}.txt`);
-      fs.writeFileSync(f, String(opts.pattern), "utf8");
-      tempFiles.push(f);
-      args.push("--unlock-pattern-file", f);
-    }
-  } catch (e) {
-    /* ignore temp write errors */
-  }
-
-  if (kind === "plan-root" || kind === "run-root") {
-    args.push("--mode", getSettings().agentMode === "permanent" ? "permanent" : "temporary");
-  }
-  if (kind === "plan-root") {
-    args.push("--plan-only");
-  } else if (kind === "plan-lock") {
-    args.push("--lock-recovery", "--plan-only");
-  } else if (kind === "run-lock") {
-    args.push("--lock-recovery", "--yes");
-  } else if (kind === "run-root") {
-    args.push("--yes");
-  }
-
-  const command = launch.mode === "bundled" ? launch.command : pythonCommand();
-  agentProcess = spawn(command, args, { cwd: root, windowsHide: true });
-
-  let buffer = "";
-  agentProcess.stdout.setEncoding("utf8");
-  agentProcess.stdout.on("data", (chunk) => {
-    buffer += chunk;
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      let obj = null;
-      try {
-        obj = JSON.parse(trimmed);
-      } catch {
-        continue;
-      }
-      agentEvent(obj);
-    }
-  });
-
-  let errorBuffer = "";
-  agentProcess.stderr.setEncoding("utf8");
-  agentProcess.stderr.on("data", (chunk) => {
-    errorBuffer += chunk;
-  });
-
-  agentProcess.on("error", (err) => {
-    agentEvent({ type: "error", error: String(err.message) });
-  });
-
-  agentProcess.on("close", (code) => {
-    const err = errorBuffer.trim();
-    if (code !== 0 && err) {
-      agentEvent({ type: "error", error: err });
-    }
-    agentEvent({ type: "exit", code });
-    agentProcess = null;
-    for (const f of tempFiles) {
-      try {
-        fs.unlinkSync(f);
-      } catch {
-        /* already gone */
-      }
-    }
-    if (pendingAgent) {
-      const next = pendingAgent;
-      pendingAgent = null;
-      spawnAgent(next.kind, next.opts);
-    }
-  });
-  return true;
-}
-
-function killAgent() {
-  pendingAgent = null;
-  if (agentProcess) {
-    try {
-      agentProcess.kill();
-    } catch {
-      /* already dead */
-    }
-    agentProcess = null;
   }
 }
 
@@ -685,20 +529,6 @@ function exportScan(id) {
 ipcMain.on("device:start", () => startDevicePolling());
 ipcMain.on("scan:start", () => startScan());
 ipcMain.on("scan:cancel", () => killScan());
-ipcMain.on("agent:start", (_e, kind, opts) => runAgent(kind, opts));
-ipcMain.on("agent:cancel", () => killAgent());
-
-ipcMain.handle("fastboot:detect", async () => {
-  const packaged = packagedFastbootPath();
-  if (packaged) return { found: true, path: packaged };
-  return new Promise((resolve) => {
-    const exe = process.platform === "win32" ? "where" : "which";
-    execFile(exe, ["fastboot"], { timeout: 4000 }, (err, stdout) => {
-      if (err || !String(stdout).trim()) resolve({ found: false, path: "" });
-      else resolve({ found: true, path: String(stdout).trim().split(/\r?\n/)[0] });
-    });
-  });
-});
 
 ipcMain.handle("device:info", async () => {
   if (!currentDeviceSerial) return null;

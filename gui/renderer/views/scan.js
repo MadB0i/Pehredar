@@ -5,11 +5,16 @@
   let mounted = false;
   let scanning = false;
 
+  function setScanningCard(on) {
+    const card = el().querySelector("#graph-card");
+    if (card) card.classList.toggle("is-scanning", on);
+  }
+
   function mount(el) {
     el.innerHTML =
       '<h2 class="view-title">SCAN</h2>' +
       '<div class="scan-layout">' +
-      '<div class="card graph-card">' +
+      '<div class="card graph-card" id="graph-card">' +
       '<div class="card-title scan-head"><span>LIVE CHECK NETWORK</span><span id="scan-status" class="scan-status">idle</span></div>' +
       '<div class="graph-wrap"><canvas id="graph"></canvas></div>' +
       "</div>" +
@@ -151,8 +156,13 @@
       .catch(() => null)
       .then((s) => {
         buildChecklist(skippedSlugs(s));
+        setScanningCard(true);
         window.pehredar.startScan();
       });
+  }
+
+  function stopScanVisuals() {
+    setScanningCard(false);
   }
 
   function onCancel() {
@@ -160,6 +170,7 @@
     scanning = false;
     refreshButtons();
     setStatus("cancelled", false);
+    stopScanVisuals();
     // A cancelled run leaves no more events coming: rows still marked
     // running would lie, so settle them back to pending. Finished rows
     // keep their real outcomes.
@@ -170,6 +181,7 @@
 
   function resetView() {
     if (graph) graph.reset();
+    setScanningCard(false);
     buildChecklist(new Set());
     const panel = el().querySelector("#risk-panel");
     panel.classList.add("hidden");
@@ -211,6 +223,7 @@
     scanning = false;
     refreshButtons();
     setStatus("complete", false);
+    stopScanVisuals();
 
     const panel = el().querySelector("#risk-panel");
     const riskValue = el().querySelector("#risk-value");
@@ -253,11 +266,13 @@
   function onExit(data) {
     scanning = false;
     refreshButtons();
+    stopScanVisuals();
     if (data.code !== 0) setStatus("failed (" + data.code + ")", false);
   }
 
   function onError(data) {
     setStatus("error", false);
+    stopScanVisuals();
     if (data.error) window.App.toast("CLI error: " + data.error);
   }
 

@@ -1,8 +1,8 @@
 # NOTICE — Third-Party Components
 
-## Android Debug Bridge (adb) and fastboot
+## Android Debug Bridge (adb)
 
-- **What:** `adb(.exe)`, `fastboot(.exe)` and (Windows-only) `AdbWinApi.dll` /
+- **What:** `adb(.exe)` and (Windows-only) `AdbWinApi.dll` /
   `AdbWinUsbApi.dll`, shipped inside the Pehredar Windows installer / Linux
   AppImage under `resources/bin/<win|linux>/` (see `scripts/fetch-adb.py`).
   The binaries are **never committed to git** (`gui/resources/bin/` is
@@ -48,7 +48,7 @@
 
 ## Pehredar Python core (PyInstaller onefile)
 
-- The bundled `pehredar-core(.exe)` / `pehredar-agent-core(.exe)` are built
+- The bundled `pehredar-core(.exe)` is built
   from this repo's own MIT-licensed code (`pehredar/`, see `LICENSE`) plus
   its open-source dependencies (`click`, `rich` and their transitive deps).
   No extra license action is needed beyond the dependency licenses, which
