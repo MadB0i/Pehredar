@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GUI boot smoke test**: `electron . --smoke-test` boots the full app headlessly and exits 0 on `SMOKE-OK` (catches startup-crash class bugs like a module missing from `app.asar`); new `gui-smoke` CI job runs it under xvfb on every push/PR.
+
 ### Removed
 - Removed the Advanced/Root Agent feature — out of scope for this tool's detection-focused positioning.
 

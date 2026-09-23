@@ -729,11 +729,42 @@ ipcMain.handle("app:uninstall", async (_e, pkgs) => {
 
 app.setAppUserModelId("com.pehredar.desktop");
 
+// ---- CI smoke test ----
+// `electron . --smoke-test`: boot the full app headlessly, wait for the
+// renderer to finish loading plus a grace window (splash timers, first
+// device poll), then print SMOKE-OK and exit 0. Any startup crash — e.g.
+// a module missing from app.asar — exits non-zero before the marker.
+// Used by the gui-smoke CI job under xvfb; never triggered in normal use.
+const SMOKE_TEST = process.argv.includes("--smoke-test");
+
+if (SMOKE_TEST) {
+  process.on("uncaughtException", (err) => {
+    console.error("SMOKE-FAIL uncaughtException: " + ((err && err.stack) || err));
+    process.exit(1);
+  });
+}
+
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+  if (SMOKE_TEST && mainWindow) {
+    mainWindow.webContents.once("render-process-gone", (_e, details) => {
+      console.error("SMOKE-FAIL render-process-gone: " + JSON.stringify(details));
+      process.exit(1);
+    });
+    mainWindow.webContents.once("did-finish-load", () => {
+      setTimeout(() => {
+        console.log("SMOKE-OK window-loaded");
+        app.exit(0);
+      }, 8000);
+    });
+    setTimeout(() => {
+      console.error("SMOKE-FAIL load-timeout");
+      process.exit(1);
+    }, 60000).unref();
+  }
 });
 
 app.on("window-all-closed", () => {

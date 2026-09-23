@@ -43,6 +43,11 @@ pip install -e .[dev]
 pytest          # mocked ADB — no device needed
 ```
 
+```bash
+cd gui && npx electron . --smoke-test   # boots the full GUI headlessly, exits 0 on SMOKE-OK
+```
+(The `gui-smoke` CI job runs the same under xvfb on every push/PR.)
+
 ## Packaged build (zero-dependency installer)
 
 The Electron installer ships a standalone Python core (PyInstaller onefile)

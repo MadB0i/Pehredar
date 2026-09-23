@@ -31,3 +31,34 @@ jobs:
 
       - name: Run tests with pytest
         run: pytest tests/ -q
+
+  gui-smoke:
+    name: GUI boot smoke (Electron, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install GUI dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Boot smoke test
+        # A broken packaged-equivalent boot (e.g. a module missing from
+        # app.asar) hangs on an error dialog instead of exiting, so the
+        # timeout wrapper turns hangs into failures. Both the exit code
+        # AND the SMOKE-OK marker must pass.
+        working-directory: gui
+        run: |
+          set -o pipefail
+          timeout 120 xvfb-run -a npx electron . --smoke-test 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+          grep -q "SMOKE-OK" "$RUNNER_TEMP/smoke.log"
