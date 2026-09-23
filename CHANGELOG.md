@@ -5,33 +5,28 @@ All notable changes to Pehredar are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-09-23
 
 ### Added
-- **Trusted apps allowlist**: mark flagged apps safe from any Review & Remove list (per-device or all-devices scope) or add IDs manually in Settings; trusted apps stay visible but excluded from removal, scan verdicts never change.
-- **Auto-update**: `electron-updater` against GitHub Releases (boot check on packaged builds, restart prompt on download, manual check in About), `latest.yml`/`latest-linux.yml` generated in `release.yml`, app version bumped to 1.1.0 across all sources.
-- **First-run onboarding**: 3-step USB-debugging guide overlay on first launch (persisted flag, replayable from Settings → ADB Configuration), plus a matching section in the personal-use guide.
-- **Stalkerware DB updates**: versioned envelope (`version`/`updated`/`source`), `scripts/update_stalkerware_db.py` (`--check` freshness with exit 2 when stale, `--merge` for validated curator additions with auto version-bump), DB version stamped in scan evidence (`[db vN]`), warning-only CI freshness step.
-- **Scan-compare in the GUI**: History detail view gains a Compare button that diffs the scan against the previous one (new/resolved failures, new/removed flagged apps, risk change) — renderer-side port of `pehredar/diff.py`, verified field-identical against the Python output.
-- **GUI boot smoke test**: `electron . --smoke-test` boots the full app headlessly and exits 0 on `SMOKE-OK` (catches startup-crash class bugs like a module missing from `app.asar`); new `gui-smoke` CI job runs it under xvfb on every push/PR.
-
-### Removed
-- Removed the Advanced/Root Agent feature — out of scope for this tool's detection-focused positioning.
+- Scan diffing: `pehredar-diff` CLI plus a Compare button in History that diffs a scan against the previous one (new/resolved failures, new/removed flagged apps, risk change).
+- Known-stalkerware detection (12th check) backed by a curated, versioned indicator DB (`--check` freshness with exit 2 when stale, `--merge` curator workflow, DB version stamped in scan evidence).
+- Safety-first presentation: calm plain-language summary on every scan result; genuine stalkerware matches open a choice screen (preserve evidence / remove with understanding / support options) instead of a direct Uninstall button; India support-resources panel (112, 181, NCW 14490, Cyber 1930).
+- Trusted apps allowlist (per-device or global scope) and a first-run USB-debugging onboarding wizard.
+- Auto-update via `electron-updater` against GitHub Releases, with a manual check in About.
+- GUI boot smoke test (`electron . --smoke-test` plus a CI job) catching startup-crash class bugs.
 
 ### Changed
-- UI consistency pass: dashboard stat/last-scan skeletons, Checks Overview rows in the checklist's visual language, exact-shape history skeletons, detail-overlay crossfade on the standard token, Settings focus treatment aligned, Chart.js animation disabled under reduced-motion.
+- Zero-dependency packaging: the installer bundles a standalone Python core (PyInstaller) and adb — no Python or platform-tools install needed; dev mode still uses system tools.
+- Full motion/UI pass: event-driven scan checklist, risk reveal, crossfade navigation, skeleton loaders, connect ping, live-scan radar, reduced-motion support, and dashboard/history/settings visual consistency.
 
 ### Fixed
-- **Packaged launch crash**: `scripts/bundled-paths.js` was missing from `app.asar` (`build.files` only listed `main.js`/`preload.js`/`assets`/`renderer`), so every production launch died with "Cannot find module './scripts/bundled-paths'". Now explicitly packaged, with a `tests/test_packaging.py` guard that fails if any runtime `require()` in `main.js` is not covered by `build.files`.
+- Stalkerware check missing from the GUI catalog and scan graph (silently ignored).
+- Safety-first gate narrowed to stalkerware identity (was over-triggering on any high-severity finding).
+- Settings view crash from a pre-existing unterminated string.
+- Packaged launch crash from `bundled-paths.js` missing in `app.asar` (with a packaging guard test).
 
-### Added
-- **Purposeful motion design** (`gui/renderer/motion-tokens.css`): duration/easing tokens (120/240/360ms, ease-out entrances, ease-in exits), event-driven 12-row scan checklist (pending → running → pass/fail, skipped aware, desync-proof), risk reveal (panel rise, badge pop, 350ms count-up, calm HIGH pulse), crossfade tab navigation, shape-matched skeleton placeholders, one-shot device-connect ping. Live scan view: a slow radar sweep over the check network, visible only while a scan is actually running. Global `prefers-reduced-motion` guard collapses everything to instant state changes.
-- **Missing 12th check wired into GUI**: `check_known_stalkerware` added to `CHECK_CATALOG` and the scan graph (previously silently ignored by both).
-- Documented licensing basis for bundled adb/fastboot binaries (Apache 2.0, AOSP-sourced).
-- **Zero-dependency installer**: `scripts/build_core.py` (PyInstaller `--onefile` → `pehredar-core(.exe)` + `pehredar-agent-core(.exe)` in `gui/resources/bin/<win|linux>/`) and `scripts/fetch-adb.py` (official platform-tools zip → bundled `adb`/`fastboot` + Windows DLLs, never committed to git). `gui/main.js` uses the bundle when `app.isPackaged` and falls back to system `python`/`adb` in dev; missing binaries or unsupported platforms produce an explicit in-app error instead of a silent crash. `release.yml` now fetches, builds, and smoke-tests (`--version` + `adb version`) before packaging. `NOTICE-THIRD-PARTY.md` records the licensing basis (Apache 2.0, AOSP-sourced, scrcpy precedent).
-- **Release workflow**: `.github/workflows/release.yml` builds the Electron GUI on tag `v*` (Windows NSIS `.exe` + Linux AppImage) and publishes to GitHub Releases with `SHA256SUMS.txt`. GUI `package.json` gains stable `artifactName`s, `icon.ico` on Windows, and repo metadata. README gains a Download section.
-- **Scan diffing**: new `pehredar/diff.py` (`diff_reports` + `format_diff_text`) and `pehredar-diff` CLI (`old.json new.json [--format text|json] [-o diff.json]`, exit 1 on new findings). Answers "since last scan, what changed" — new/resolved failures, added/removed flagged packages, risk delta.
-- **Known-stalkerware check**: new `check_known_stalkerware` backed by manually curated `pehredar/checks/stalkerware_db.json` (Coalition Against Stalkerware + TinyCheck snapshot, exact + family-prefix matching). Wired into `ALL_CHECKS`, GUI spyware category, and Simple Mode labels.
+### Removed
+- The Advanced/Root Agent feature (bootloader unlock, root, lock-clear) — out of scope for this tool's detection-focused positioning.
 
 ## [1.0.0] - 2026-08-16
 
