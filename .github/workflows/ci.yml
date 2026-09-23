@@ -59,12 +59,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Boot smoke test
-        # A broken packaged-equivalent boot (e.g. a module missing from
-        # app.asar) hangs on an error dialog instead of exiting, so the
-        # timeout wrapper turns hangs into failures. Both the exit code
-        # AND the SMOKE-OK marker must pass.
+        # A broken boot hangs on an error dialog instead of exiting, so the
+        # timeout wrapper turns hangs into failures. Both the exit code AND
+        # the SMOKE-OK marker must pass. --no-sandbox comes before the app
+        # path (Chromium consumes it): GitHub runners can't use Electron's
+        # SUID sandbox, which needs a root-owned mode-4755 helper.
         working-directory: gui
         run: |
           set -o pipefail
-          timeout 120 xvfb-run -a npx electron . --smoke-test 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+          timeout 120 xvfb-run -a npx electron --no-sandbox . --smoke-test 2>&1 | tee "$RUNNER_TEMP/smoke.log"
           grep -q "SMOKE-OK" "$RUNNER_TEMP/smoke.log"
