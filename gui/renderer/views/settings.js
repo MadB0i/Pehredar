@@ -40,6 +40,17 @@
       '<div class="adb-test-box" id="adb-test-box"></div>' +
       "</div>" +
 
+      // ---- Trusted apps (allowlist) ----
+      '<div class="card">' +
+      '<div class="card-title">TRUSTED APPS</div>' +
+      '<p class="set-hint">Apps you marked safe. They stay visible in scan results but are excluded from Review &amp; Remove. Scan verdicts never change.</p>' +
+      '<div id="set-trusted"></div>' +
+      '<div class="adb-override-row">' +
+      '<input type="text" id="trusted-add" placeholder="com.example.app" />' +
+      '<button class="btn btn-ghost" id="trusted-add-btn">Trust App</button>' +
+      "</div>" +
+      "</div>" +
+
       // ---- Appearance ----
       '<div class="card">' +
       '<div class="card-title">APPEARANCE</div>' +
@@ -86,6 +97,7 @@
     el.querySelector("#set-guide").addEventListener("click", () => {
       if (window.Views.onboarding) window.Views.onboarding.show();
     });
+    el.querySelector("#trusted-add-btn").addEventListener("click", onTrustedAdd);
 
     const accents = el.querySelectorAll(".swatch");
     accents.forEach((sw) => sw.addEventListener("click", () => setAccent(sw.dataset.accent)));
@@ -230,6 +242,56 @@
     const list = await window.pehredar.scans.list();
     el.querySelector("#set-dir").textContent = dir || "—";
     el.querySelector("#set-count").textContent = String(list.length) + (list.length === 1 ? " record" : " records");
+    await renderTrusted();
+  }
+
+  function scopeLabel(entry) {
+    if (!entry.serial) return "all devices";
+    const cur = window.App && window.App.device && window.App.device.serial;
+    return entry.serial === cur ? "this device" : "device " + entry.serial;
+  }
+
+  async function renderTrusted() {
+    const el = document.getElementById("view-settings");
+    const box = el.querySelector("#set-trusted");
+    if (!window.Allowlist) {
+      box.innerHTML = '<div class="dim">Allowlist unavailable.</div>';
+      return;
+    }
+    const list = await window.Allowlist.list();
+    if (!list.length) {
+      box.innerHTML = '<div class="dim">No trusted apps yet. Mark apps safe from any Review &amp; Remove list.</div>';
+      return;
+    }
+    box.innerHTML = list
+      .map(
+        (e) =>
+          '<div class="toggle-row"><span class="lbl">' +
+          window.Components.esc(e.package) +
+          '<span class="sub">' + window.Components.esc(scopeLabel(e)) + "</span></span>" +
+          '<button class="btn btn-ghost btn-sm" data-untrust="' + window.Components.esc(e.package) + '">Remove</button>' +
+          "</div>"
+      )
+      .join("");
+    box.querySelectorAll("[data-untrust]").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        await window.Allowlist.unallow(btn.dataset.untrust).catch(() => {});
+        window.App.toast("Removed from trusted apps");
+        renderTrusted();
+      })
+    );
+  }
+
+  async function onTrustedAdd() {
+    const el = document.getElementById("view-settings");
+    const input = el.querySelector("#trusted-add");
+    const pkg = input.value.trim();
+    if (!pkg) return;
+    if (!window.Allowlist) return;
+    await window.Allowlist.allow(pkg, null).catch(() => {});
+    input.value = "";
+    window.App.toast("Trusted on all devices");
+    renderTrusted();
   }
 
   async function refresh() {

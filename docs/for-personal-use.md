@@ -22,6 +22,7 @@ A typical scan checks:
 - Don't panic — a flag is an *indicator*, not a verdict.
 - Read the explanation in Simple Mode. Some flags are explained by things you already know (an unlocked bootloader you enabled, an app you installed knowingly).
 - Pehredar can remove suspicious apps for you: in the scan results, tap **Review & Remove**, select the apps, and confirm. System apps are never touched.
+- If an app you recognize and trust keeps getting flagged, tap **Trust** next to it in the Review list (or add it under **Settings → Trusted Apps**). Trusted apps stay visible in results but are excluded from removal — the scan verdict itself never changes.
 - If you're unsure about a finding, ask someone technical before removing anything — uninstalling an app is permanent.
 
 Pehredar reports indicators, not a guarantee of security. A clean scan does not prove a device is safe, and a flagged item is not proof of wrongdoing. Always verify findings yourself before taking any action.

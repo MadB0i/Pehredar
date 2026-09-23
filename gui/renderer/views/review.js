@@ -3,7 +3,7 @@
 
   let bound = false;
   let currentHandler = null;
-  let state = { packages: [], labels: {}, system: new Set(), selected: new Set() };
+  let state = { packages: [], labels: {}, system: new Set(), selected: new Set(), trusted: new Set() };
 
   function bind() {
     if (bound) return;
@@ -31,6 +31,7 @@
     state.selected = new Set();
     state.labels = {};
     state.system = new Set();
+    state.trusted = new Set();
     currentHandler = null;
 
     const overlay = document.getElementById("review-overlay");
@@ -45,32 +46,55 @@
     ]);
     state.system = new Set(sys || []);
     state.labels = labels || {};
+    // Trusted apps (this device, or trusted everywhere) are excluded from
+    // removal but stay visible and marked — verdicts are never rewritten.
+    if (window.Allowlist) {
+      const allowed = await window.Allowlist.list().catch(() => []);
+      const ser = window.Allowlist.serial();
+      for (const pkg of state.packages) {
+        if (allowed.some((e) => e.package === pkg && (!e.serial || !ser || e.serial === ser))) {
+          state.trusted.add(pkg);
+        }
+      }
+    }
     renderList();
   }
 
   function renderList() {
     const body = document.getElementById("review-body");
     const labelFor = (pkg) => state.labels[pkg] || pkg;
+    const actionable = state.packages.filter((p) => !state.system.has(p) && !state.trusted.has(p));
     let rows = "";
     for (const pkg of state.packages) {
       const isSys = state.system.has(pkg);
+      const isTrusted = state.trusted.has(pkg);
       rows +=
         '<div class="rv-row">' +
-        (isSys
+        (isSys || isTrusted
           ? '<span class="rv-lock">' + window.icon("settings", 16) + "</span>"
           : '<label class="toggle"><input type="checkbox" data-pkg="' + window.Components.esc(pkg) + '" /><span class="track"><span class="thumb"></span></span></label>') +
         '<div class="rv-info">' +
         '<div class="rv-name">' + window.Components.esc(labelFor(pkg)) + "</div>" +
-        '<div class="rv-pkg mono">' + window.Components.esc(pkg) + (isSys ? ' <span class="rv-sys">System app — cannot remove</span>' : "") + "</div>" +
+        '<div class="rv-pkg mono">' + window.Components.esc(pkg) +
+        (isSys ? ' <span class="rv-sys">System app — cannot remove</span>' : "") +
+        (isTrusted ? ' <span class="rv-trusted">Trusted — excluded</span>' : "") +
         "</div>" +
+        "</div>" +
+        (!isSys && !isTrusted
+          ? '<button class="btn btn-ghost btn-sm rv-trust" data-pkg="' + window.Components.esc(pkg) + '">Trust</button>'
+          : "") +
         "</div>";
     }
     body.innerHTML =
-      '<p class="set-hint">Select the apps you want to remove. Nothing is removed until you confirm.</p>' +
+      '<p class="set-hint">Select the apps you want to remove. Nothing is removed until you confirm.' +
+      (state.trusted.size ? " " + state.trusted.size + " trusted app(s) excluded." : "") +
+      "</p>" +
       '<div class="rv-list">' + rows + "</div>" +
-      '<div class="rv-actions">' +
-      '<button class="btn btn-danger btn-lg" id="rv-remove" disabled>Remove Selected (0)</button>' +
-      "</div>";
+      (actionable.length
+        ? '<div class="rv-actions">' +
+          '<button class="btn btn-danger btn-lg" id="rv-remove" disabled>Remove Selected (0)</button>' +
+          "</div>"
+        : '<div class="dim">Every flagged app here is trusted or a system app — nothing to remove.</div>');
 
     body.querySelectorAll('input[data-pkg]').forEach((inp) =>
       inp.addEventListener("change", () => {
@@ -79,7 +103,19 @@
         updateRemoveBtn();
       })
     );
-    body.querySelector("#rv-remove").addEventListener("click", onRemove);
+    body.querySelectorAll(".rv-trust").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        if (!window.Allowlist) return;
+        btn.disabled = true;
+        await window.Allowlist.allow(btn.dataset.pkg).catch(() => {});
+        state.trusted.add(btn.dataset.pkg);
+        state.selected.delete(btn.dataset.pkg);
+        window.App.toast("Trusted — excluded from future removals on this device");
+        renderList();
+      })
+    );
+    const removeBtn = body.querySelector("#rv-remove");
+    if (removeBtn) removeBtn.addEventListener("click", onRemove);
   }
 
   function updateRemoveBtn() {

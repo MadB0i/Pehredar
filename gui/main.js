@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   accent: "cyan",
   simple: false,
   onboarded: false,
+  allowedPackages: [],
   checks: {
     categories: { root: true, spyware: true },
     enabled: {},
@@ -58,6 +59,13 @@ function getSettings() {
     if (saved.accent !== undefined) base.accent = saved.accent;
     if (saved.simple !== undefined) base.simple = saved.simple;
     if (saved.onboarded !== undefined) base.onboarded = saved.onboarded;
+    // Trusted-app allowlist: [{package, serial|null, addedAt}]. Sanitized
+    // on read so a hand-edited settings file can't break the Review flow.
+    if (Array.isArray(saved.allowedPackages)) {
+      base.allowedPackages = saved.allowedPackages.filter(
+        (e) => e && typeof e.package === "string" && e.package.trim()
+      );
+    }
     if (saved.checks) {
       if (saved.checks.categories) base.checks.categories = Object.assign({}, base.checks.categories, saved.checks.categories);
       if (saved.checks.enabled) base.checks.enabled = Object.assign({}, base.checks.enabled, saved.checks.enabled);

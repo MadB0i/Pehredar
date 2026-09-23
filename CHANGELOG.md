@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Trusted apps allowlist**: mark flagged apps safe from any Review & Remove list (per-device or all-devices scope) or add IDs manually in Settings; trusted apps stay visible but excluded from removal, scan verdicts never change.
 - **Auto-update**: `electron-updater` against GitHub Releases (boot check on packaged builds, restart prompt on download, manual check in About), `latest.yml`/`latest-linux.yml` generated in `release.yml`, app version bumped to 1.1.0 across all sources.
 - **First-run onboarding**: 3-step USB-debugging guide overlay on first launch (persisted flag, replayable from Settings → ADB Configuration), plus a matching section in the personal-use guide.
 - **Stalkerware DB updates**: versioned envelope (`version`/`updated`/`source`), `scripts/update_stalkerware_db.py` (`--check` freshness with exit 2 when stale, `--merge` for validated curator additions with auto version-bump), DB version stamped in scan evidence (`[db vN]`), warning-only CI freshness step.
