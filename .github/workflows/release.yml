@@ -65,7 +65,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Path dist -Include *.exe,*.blockmap -Recurse | ForEach-Object { Get-FileHash $_.FullName -Algorithm SHA256 | Select-Object @{n='File';e={$_.Path}}, Hash } | Format-Table -AutoSize
-          Get-ChildItem dist/*.exe | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name } | Out-File -Encoding utf8 dist/SHA256SUMS.txt
+          Get-ChildItem dist/*.exe | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name } | Out-File -Encoding utf8 dist/SHA256SUMS-win.txt
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -74,7 +74,7 @@ jobs:
           path: |
             gui/dist/*.exe
             gui/dist/*.blockmap
-            gui/dist/SHA256SUMS.txt
+            gui/dist/SHA256SUMS-win.txt
           if-no-files-found: error
 
   build-linux:
@@ -131,8 +131,8 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum *.AppImage > SHA256SUMS.txt || true
-          cat SHA256SUMS.txt
+          sha256sum *.AppImage > SHA256SUMS-linux.txt || true
+          cat SHA256SUMS-linux.txt
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -140,7 +140,7 @@ jobs:
           name: pehredar-linux
           path: |
             gui/dist/*.AppImage
-            gui/dist/SHA256SUMS.txt
+            gui/dist/SHA256SUMS-linux.txt
           if-no-files-found: error
 
   publish:
@@ -181,10 +181,10 @@ jobs:
         with:
           files: |
             release-assets/win/*.exe
-            release-assets/win/SHA256SUMS.txt
+            release-assets/win/SHA256SUMS-win.txt
             release-assets/win/latest.yml
             release-assets/linux/*.AppImage
-            release-assets/linux/SHA256SUMS.txt
+            release-assets/linux/SHA256SUMS-linux.txt
             release-assets/linux/latest-linux.yml
           body: |
             ## Pehredar Desktop (zero-dependency)
@@ -193,8 +193,8 @@ jobs:
             ADB are bundled inside, so just install, plug in your phone with
             USB Debugging on, and click Scan.
 
-            - Windows: `Pehredar-*.exe` (NSIS installer, unsigned — accept the SmartScreen prompt, then verify `SHA256SUMS.txt`)
-            - Linux: `Pehredar-*.AppImage` (`chmod +x` then run)
+            - Windows: `Pehredar-*.exe` (NSIS installer, unsigned — accept the SmartScreen prompt, then verify `SHA256SUMS-win.txt`)
+            - Linux: `Pehredar-*.AppImage` (`chmod +x` then run, verify `SHA256SUMS-linux.txt`)
 
             > Note: installers are currently **unsigned**. Windows will show an "Unknown publisher" warning. Verify the SHA256 checksum before running.
             > The installer embeds adb built from the Apache-2.0-licensed AOSP sources — see NOTICE-THIRD-PARTY.md for the licensing basis.
