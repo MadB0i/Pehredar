@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -74,6 +75,22 @@ def test_connect_success(mocker):
     conn = ADBConnection()
     mocker.patch.object(conn, "_run_adb", return_value=fake_result("List of devices attached\nABC123\tdevice\n"))
     assert conn.connect() == "ABC123"
+
+
+def test_connect_selects_requested_wifi_device():
+    conn = ADBConnection(serial="192.168.1.100:5555")
+    with patch.object(conn, "_run_adb", return_value=fake_result(
+        "List of devices attached\nUSB123\tdevice\n192.168.1.100:5555\tdevice\n"
+    )):
+        assert conn.connect() == "192.168.1.100:5555"
+
+
+def test_connect_missing_wifi_device_does_not_use_usb():
+    conn = ADBConnection(serial="192.168.1.100:5555")
+    with patch.object(conn, "_run_adb", return_value=fake_result(
+        "List of devices attached\nUSB123\tdevice\n"
+    )), pytest.raises(NoDeviceError):
+        conn.connect()
 
 
 def test_adb_missing_raises_adb_error(mocker):

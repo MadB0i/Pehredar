@@ -41,3 +41,11 @@ High-risk findings don't lead straight to an Uninstall button. Pehredar shows a 
 ## License & contributing
 
 MIT — see [LICENSE](LICENSE). Bundled ADB licensing: [NOTICE-THIRD-PARTY.md](NOTICE-THIRD-PARTY.md). Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) (developer guides live in [docs/](docs/for-developers.md)).
+# Wi-Fi ADB
+
+In the desktop app, open **Settings → ADB Configuration → Wi-Fi ADB Connection**,
+enter `IP:PORT` (for example `192.168.1.100:5555`), and click **Connect**.
+This runs `adb connect IP:PORT` using the configured ADB executable. The connected
+Wi-Fi device is used for subsequent scans, including when a USB device is attached.
+Enable wireless debugging and use the device's connection port. If Android requires
+pairing, run `adb pair IP:PAIRING_PORT` first. Both devices must be on the same network.

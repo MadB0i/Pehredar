@@ -22,6 +22,13 @@
       // ---- ADB ----
       '<div class="card">' +
       '<div class="card-title">ADB CONFIGURATION</div>' +
+      '<div class="setting-sub">Wi-Fi ADB Connection</div>' +
+      '<p class="set-hint">Enable wireless debugging on your device and use the same Wi-Fi network. Enter the connection IP and port (not the pairing port). Pair with adb pair first if your device requires it.</p>' +
+      '<form id="adb-wifi-form" class="adb-override-row">' +
+      '<input type="text" id="adb-wifi-address" aria-label="Wi-Fi ADB IP address and port" placeholder="192.168.1.100:5555" required />' +
+      '<button type="submit" class="btn btn-primary" id="adb-wifi-connect">Connect</button>' +
+      '</form>' +
+      '<div class="adb-test-box" id="adb-wifi-result" role="status" aria-live="polite"></div>' +
       '<div class="setting-sub">Detected Path</div>' +
       '<div class="adb-detect-row">' +
       '<span class="adb-path-display" id="adb-detected">detecting…</span>' +
@@ -100,6 +107,22 @@
     el.querySelector("#adb-browse").addEventListener("click", onBrowse);
     el.querySelector("#adb-save").addEventListener("click", onAdbSave);
     el.querySelector("#adb-test").addEventListener("click", onAdbTest);
+    el.querySelector("#adb-wifi-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = el.querySelector("#adb-wifi-connect");
+      const result = el.querySelector("#adb-wifi-result");
+      button.disabled = true;
+      result.classList.add("show");
+      result.textContent = "Connecting…";
+      try {
+        const response = await window.pehredar.adb.connect(el.querySelector("#adb-wifi-address").value);
+        result.textContent = response.ok ? response.message : response.error;
+      } catch (error) {
+        result.textContent = "Connection failed: " + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
     el.querySelector("#set-guide").addEventListener("click", () => {
       if (window.Views.onboarding) window.Views.onboarding.show();
     });

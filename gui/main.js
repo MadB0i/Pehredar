@@ -44,6 +44,7 @@ let mainWindow = null;
 let devicePollTimer = null;
 let currentDeviceSerial = null;
 let currentDeviceModel = null;
+let wifiDeviceSerial = null;
 let scanProcess = null;
 
 // ---- settings persistence ----
@@ -217,10 +218,22 @@ function pollDevice() {
       return;
     }
     const lines = String(stdout).split(/\r?\n/).slice(1);
+    if (wifiDeviceSerial) {
+      const ready = lines.some((line) => {
+        const parts = line.trim().split(/\s+/);
+        return parts[0] === wifiDeviceSerial && parts[1] === "device";
+      });
+      if (!ready) {
+        currentDeviceSerial = null;
+        currentDeviceModel = "";
+        sendDeviceUpdate({ connected: false });
+        return;
+      }
+    }
     let serial = null;
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
-      if (parts.length >= 2 && parts[1] === "device") {
+      if (parts.length >= 2 && parts[1] === "device" && (!wifiDeviceSerial || parts[0] === wifiDeviceSerial)) {
         serial = parts[0];
         break;
       }
@@ -567,6 +580,30 @@ ipcMain.handle("settings:get", () => getSettings());
 ipcMain.handle("settings:set", (_e, patch) => saveSettings(patch || {}));
 
 // ---- adb configuration ----
+ipcMain.handle("adb:connect", async (_event, address) => {
+  if (scanProcess) return { ok: false, error: "Finish or cancel the scan before changing devices." };
+  const endpoint = typeof address === "string" ? address.trim() : "";
+  const match = endpoint.match(/^(\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]+\]):(\d{1,5})$/);
+  const host = match && match[1];
+  const validIP = host && require("net").isIP(host.replace(/^\[|\]$/g, ""));
+  if (!match || !validIP || Number(match[2]) < 1 || Number(match[2]) > 65535) {
+    return { ok: false, error: "Enter an IP address and port, for example 192.168.1.100:5555." };
+  }
+  return new Promise((resolve) => {
+    execFile(adbExecutable(), ["connect", endpoint], { timeout: 15000 }, (err, stdout, stderr) => {
+      const message = [stdout, stderr].filter(Boolean).join("\n").trim();
+      // adb can report connection failures with exit code zero.
+      if (err || !/^(?:already )?connected to /im.test(message)) {
+        resolve({ ok: false, error: message || (err && err.message) || "ADB connection failed." });
+        return;
+      }
+      wifiDeviceSerial = endpoint;
+      pollDevice();
+      resolve({ ok: true, message });
+    });
+  });
+});
+
 function adbNotFoundMessage(exe) {
   if (app.isPackaged && !customAdbPath() && exe !== "adb") {
     return (

@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld("pehredar", {
     set: (patch) => ipcRenderer.invoke("settings:set", patch),
   },
   adb: {
+    connect: (address) => ipcRenderer.invoke("adb:connect", address),
     test: (adbPath) => ipcRenderer.invoke("adb:test", adbPath),
     detect: () => ipcRenderer.invoke("adb:detect"),
   },

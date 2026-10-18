@@ -66,6 +66,8 @@ class ADBConnection:
 
     def connect(self) -> str:
         devices = self.list_devices()
+        if self.serial:
+            devices = [d for d in devices if d.serial == self.serial]
         if not devices:
             raise NoDeviceError("No devices connected. Enable USB debugging and connect device.")
 
